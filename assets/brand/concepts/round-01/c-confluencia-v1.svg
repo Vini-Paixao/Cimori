@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Cimori — conceito C, Confluência, estudo 1</title>
+  <path fill="#17191D" d="M96 32H176Q192 32 192 48V72Q192 112 152 112H112Q83 112 76 136Q71 152 56 152Q32 152 32 128V96Q32 32 96 32Z"/>
+  <path fill="#17191D" transform="rotate(180 128 128)" d="M96 32H176Q192 32 192 48V72Q192 112 152 112H112Q83 112 76 136Q71 152 56 152Q32 152 32 128V96Q32 32 96 32Z"/>
+</svg>

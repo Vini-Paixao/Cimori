@@ -1,0 +1,21 @@
+<!-- Port of isle share/page.html: sequential PUT, progress, picking and pagehide. -->
+<h2>Enviar para o computador</h2><input id="pick" type="file" multiple><p id="status" role="status"></p>
+<script>
+const pick=document.getElementById('pick'), status=document.getElementById('status');
+pick.addEventListener('click',()=>fetch('api/picking',{method:'POST'}));
+pick.addEventListener('change',async()=>{
+  pick.disabled=true;
+  for(const file of pick.files){
+    await new Promise(resolve=>{
+      const request=new XMLHttpRequest();
+      request.open('PUT','api/upload?name='+encodeURIComponent(file.name));
+      request.upload.addEventListener('progress',e=>{status.textContent=file.name+' · '+(e.lengthComputable?Math.floor(e.loaded/e.total*100)+'%':'enviando');});
+      request.addEventListener('load',()=>{status.textContent=file.name+(request.status===201?' · na prateleira':' · não enviado ('+request.status+')');resolve();});
+      request.addEventListener('error',()=>{status.textContent='Confira o Wi-Fi e tente novamente.';resolve();});
+      request.send(file);
+    });
+  }
+  pick.disabled=false;pick.value='';
+});
+addEventListener('pagehide',()=>navigator.sendBeacon('api/bye'));
+</script>

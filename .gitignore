@@ -1,0 +1,10 @@
+/target/
+/dist/
+/.superpowers/
+/.worktrees/
+/.xwin-cache/
+/scratchpad-preview-phase4/
+# Cross-compile paths of the Fedora machine (cargo-xwin); a native Windows build needs none.
+/.cargo/config.toml
+# Private: the Windhawk backup has the Google Calendar secret address.
+/Mac Island & Dock *.txt

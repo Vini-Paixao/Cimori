@@ -1,0 +1,21 @@
+[package]
+name = "isle-render"
+version.workspace = true
+edition = "2024"
+rust-version = "1.88"
+license.workspace = true
+
+[dependencies]
+tracing.workspace = true
+anyhow.workspace = true
+tiny-skia.workspace = true
+ab_glyph.workspace = true
+isle-core = { path = "../isle-core" }
+resvg = { version = "0.45", default-features = false, features = ["raster-images"] }
+
+[dev-dependencies]
+serde_json.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows.workspace = true
+windows-core.workspace = true

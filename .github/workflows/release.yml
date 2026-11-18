@@ -1,0 +1,40 @@
+name: Release
+
+# A tag like v1.0.0 builds the portable zip and the installer and opens a draft release with them;
+# it is published by hand after a look.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        with:
+          toolchain: stable
+      - name: Tag matches Cargo.toml
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
+          if ("v$version" -ne "${{ github.ref_name }}") { throw "tag ${{ github.ref_name }} != Cargo.toml v$version" }
+      - run: cargo test --workspace --locked
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
+      - name: Zip and installer
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File scripts\release.ps1
+      - name: Draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          gh release create "${{ github.ref_name }}" --draft --title "Cimori $version" --notes-file CHANGELOG.md `
+            "dist\Cimori-$version-setup.exe" "dist\Cimori-$version-win-x64.zip" "dist\SHA256SUMS.txt"

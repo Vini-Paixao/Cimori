@@ -1,0 +1,183 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Adapted from zickrian/isle @ a29a7c4 gnome-extension/src/chat.js (Copyright 2026 zickrian).
+// tiny-skia layout for text chat inside the Windows pill; shared draw/hitbox geometry.
+use crate::{
+    pages::{HitBox, UiAction},
+    text::{Text, Weight},
+};
+use isle_core::{chat::Chat, state::AiProviderKind};
+
+pub const TEXT_TOP: f32 = 144.0;
+/// Port of IDEAS (isle voice.js): what to try under an empty field: the chip, the words it puts in, and
+/// whether it asks at once.
+pub const IDEAS: [(&str, &str, bool); 3] = [
+    ("Plano de hoje", "O que tenho na agenda hoje?", true),
+    ("Instalar um app…", "Instale ", false),
+    ("Encontrar um arquivo…", "Encontre ", false),
+];
+/// The ideas show while nothing is said or typed yet (isle's `_syncIdeas`).
+pub fn ideas_shown(chat: &Chat) -> bool {
+    chat.items.is_empty() && !chat.busy && chat.error.is_none() && chat.input.text.is_empty()
+}
+pub const LINE_HEIGHT: f32 = 18.0;
+pub fn hitboxes(left: f32, top: f32, w: f32, h: f32, chat: &Chat) -> Vec<HitBox> {
+    let hb = |x, y, w, h, action| HitBox {
+        x: left + x,
+        y: top + y,
+        w,
+        h,
+        action,
+    };
+    if !chat.open {
+        return vec![];
+    }
+    let mut boxes = vec![
+        hb(20., 94., 30., 30., UiAction::AiBack),
+        hb(w - 50., 94., 30., 30., UiAction::AiNew),
+    ];
+    let widths = [(w-134.)/3.;3];
+    let mut x = 64.;
+    for (i, p) in [
+        AiProviderKind::ClaudeCode,
+        AiProviderKind::Codex,
+        AiProviderKind::OpenCodeGo,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        boxes.push(hb(x, 94., widths[i], 30., UiAction::AiProvider(p)));
+        x += widths[i] + 5.;
+    }
+    if ideas_shown(chat) {
+        // .isle-voice-idea: 12 px semibold, 4 px by 11, 6 px apart.
+        let mut x = 20.;
+        for (i, (name, _, _)) in IDEAS.iter().enumerate() {
+            let iw = crate::pages::BAR_TEXT.with(|t| t.width(name, 12., Weight::Semibold)) + 22.;
+            boxes.push(hb(x, h - 90., iw, 24., UiAction::AiIdea(i)));
+            x += iw + 6.;
+        }
+    } else {
+        boxes.push(hb(20., h - 92., 30., 26., UiAction::AiScroll(8)));
+        boxes.push(hb(58., h - 92., 30., 26., UiAction::AiScroll(-8)));
+    }
+    if !chat.busy {
+        boxes.push(hb(20., h - 55., w - 86., 38., UiAction::AiInput));
+    }
+    boxes.push(hb(
+        w - 56.,
+        h - 55.,
+        36.,
+        38.,
+        if chat.busy {
+            UiAction::AiStop
+        } else {
+            UiAction::AiSend
+        },
+    ));
+    boxes
+}
+pub fn lines(text: &Text, chat: &Chat, width: f32) -> Vec<(bool, String)> {
+    let mut rows = Vec::new();
+    for item in &chat.items {
+        rows.push((
+            item.user,
+            if item.user {
+                "Você"
+            } else {
+                isle_core::chat::provider_name(chat.provider)
+            }
+            .into(),
+        ));
+        for paragraph in item.text.split('\n') {
+            let wrapped = text.wrap_exact(paragraph, width, 12.0, Weight::Regular);
+            if wrapped.is_empty() {
+                rows.push((item.user, String::new()));
+            } else {
+                rows.extend(wrapped.into_iter().map(|s| (item.user, s)));
+            }
+        }
+        rows.push((item.user, String::new()));
+    }
+    if let Some(error) = &chat.error {
+        rows.push((false, "Aviso".into()));
+        for paragraph in error.split('\n') {
+            rows.extend(
+                text.wrap_exact(paragraph, width, 12.0, Weight::Regular)
+                    .into_iter()
+                    .map(|s| (false, s)),
+            );
+        }
+    }
+    rows
+}
+pub fn visible_range(total: usize, capacity: usize, scroll: usize) -> std::ops::Range<usize> {
+    let end = total.saturating_sub(scroll.min(total.saturating_sub(capacity)));
+    end.saturating_sub(capacity)..end
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn chat_controls_fit_and_have_no_overlapping_targets() {
+        let mut chat = Chat::default();
+        assert!(hitboxes(30.0, 6.0, 520.0, 260.0, &chat).is_empty(), "closed, the ✦ in the header opens it");
+        chat.open = true;
+        let boxes = hitboxes(30.0, 6.0, 520.0, 360.0, &chat);
+        assert_eq!(boxes.iter().filter(|b| matches!(b.action, UiAction::AiIdea(_))).count(), 3, "ideas under an empty field");
+        chat.input.text = "oi".into();
+        assert!(!hitboxes(30.0, 6.0, 520.0, 360.0, &chat).iter().any(|b| matches!(b.action, UiAction::AiIdea(_))));
+        assert_eq!(
+            boxes
+                .iter()
+                .filter(|b| matches!(b.action, UiAction::AiProvider(_)))
+                .count(),
+            3
+        );
+        assert!(boxes.iter().any(|b| b.action == UiAction::AiInput));
+        for (i, b) in boxes.iter().enumerate() {
+            assert!(b.x >= 48.0 && b.x + b.w <= 532.1 && b.y >= 44.0 && b.y + b.h <= 356.1);
+            for other in boxes.iter().skip(i + 1) {
+                assert!(
+                    !(b.x < other.x + other.w
+                        && other.x < b.x + b.w
+                        && b.y < other.y + other.h
+                        && other.y < b.y + b.h)
+                );
+            }
+        }
+        chat.busy = true;
+        let boxes = hitboxes(30.0, 6.0, 520.0, 360.0, &chat);
+        assert!(boxes.iter().any(|b| b.action == UiAction::AiStop));
+        assert!(
+            !boxes
+                .iter()
+                .any(|b| matches!(b.action, UiAction::AiSend | UiAction::AiInput))
+        );
+    }
+    #[test]
+    fn transcript_keeps_newlines_unicode_and_whole_long_answers() {
+        let mut c = Chat::default();
+        c.items.push(isle_core::chat::Message {
+            user: false,
+            text: "ação\n\nnext 😀".into(),
+        });
+        let rows = lines(&Text::new(), &c, 440.0);
+        assert_eq!(
+            rows.iter().map(|(_, s)| s.as_str()).collect::<Vec<_>>(),
+            ["Claude", "ação", "", "next 😀", ""]
+        );
+    }
+    #[test]
+    fn scrolling_reaches_both_ends_and_errors_stay_readable() {
+        assert_eq!(visible_range(100, 10, 0), 90..100);
+        assert_eq!(visible_range(100, 10, 9999), 0..10);
+        assert_eq!(visible_range(3, 10, 99), 0..3);
+        let mut c = Chat::default();
+        c.error = Some("Faça login no terminal".into());
+        assert_eq!(
+            lines(&Text::new(), &c, 440.0).last().unwrap().1,
+            "Faça login no terminal"
+        );
+    }
+}

@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# From zickrian/isle @ a29a7c4 assistant/codex.rs CONFIG (Copyright 2026 zickrian).
+# Written by Isle on every start: Codex here only answers; Isle runs the actions.
+web_search = "live"
+# Isle's own job and context say all: none of Codex's coding-agent notes about its sandbox (which would
+# make it think it cannot act; Isle acts for it), its environment, apps or collaboration modes.
+include_permissions_instructions = false
+include_environment_context = false
+include_apps_instructions = false
+include_collaboration_mode_instructions = false
+[features]
+shell_tool = false
+unified_exec = false
+unified_exec_tty = false
+shell_snapshot = false
+apply_patch_freeform = false
+view_image = false
+computer_use = false
+browser_use = false
+browser_use_external = false
+browser_use_full_cdp_access = false
+in_app_browser = false
+in_app_local_automation = false
+apps = false
+plugins = false
+remote_plugin = false
+plugin_sharing = false
+hooks = false
+multi_agent = false
+image_generation = false
+skill_search = false
+skill_mcp_dependency_install = false
+tool_suggest = false
+goals = false
+worktrees = false
+workspace_dependencies = false
+sleep_tool = false
+memories = false

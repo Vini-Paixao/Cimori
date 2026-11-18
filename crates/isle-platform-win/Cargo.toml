@@ -1,0 +1,29 @@
+[package]
+name = "isle-platform-win"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+reqwest.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+isle-core = { path = "../isle-core" }
+getrandom = "0.4"
+httparse = "1"
+qrcode = { version = "0.14", default-features = false }
+subtle = "2"
+
+[target.'cfg(windows)'.dependencies]
+windows.workspace = true
+png = "0.17"
+# The Windhawk bridge's icons, turned into the PNGs the renderer reads.
+tiny-skia.workspace = true
+windows-core.workspace = true
+reqwest = { workspace = true, features = ["native-tls", "rustls-tls"] }
+
+[target.'cfg(not(windows))'.dependencies]
+reqwest = { workspace = true, features = ["rustls-tls"] }
