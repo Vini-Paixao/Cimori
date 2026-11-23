@@ -75,8 +75,14 @@ pub struct IsleConfig {
     pub animations: AnimationLevel,
     /// Stay over borderless full-screen apps instead of stepping aside.
     pub over_fullscreen: bool,
+    /// Step aside, as for a full-screen app, while a maximized window is on the island's monitor (a browser's
+    /// tabs sit where the island is).
+    pub hide_maximized: bool,
     pub modules: Modules,
     pub quota_alerts: bool,
+    /// Cimori renews Claude Code's sign-in when it ran out and no Claude Code here renewed it (Claude Code
+    /// used only on another computer). Off: the limits stop until Claude Code is opened on this one.
+    pub claude_renew_login: bool,
     pub control_tiles: Vec<ControlTile>,
     pub control_mixer: bool,
     pub control_outputs: bool,
@@ -429,8 +435,10 @@ impl Default for IsleConfig {
             accent_rgb: (241, 139, 99),
             animations: AnimationLevel::System,
             over_fullscreen: false,
+            hide_maximized: false,
             modules: Modules::default(),
             quota_alerts: true,
+            claude_renew_login: false,
             control_tiles: ControlTile::ALL.to_vec(),
             control_mixer: true,
             control_outputs: true,

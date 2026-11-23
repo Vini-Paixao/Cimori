@@ -2,30 +2,64 @@
 use super::*;
 use isle_core::updates;
 
+const AGENT: &str = concat!("Cimori/", env!("CARGO_PKG_VERSION"));
+
 #[derive(Default)]
 pub(super) struct Release {
-    /// The look at start and once a day, while "Verificar atualizações" is on.
+    /// The look at start and once a day, while "Buscar atualizações sozinha" is on.
     task: Option<tokio::task::JoinHandle<()>>,
-    /// A newer version and its page.
-    pub(super) newer: Option<(String, String)>,
+    /// A newer version.
+    pub(super) newer: Option<updates::Latest>,
     /// The version the island already announced (one banner per version).
     told: Option<String>,
-    /// What Sobre says about it.
+    /// Its installer is being downloaded.
+    installing: bool,
+    /// What Atualizações says about it.
     pub(super) status: String,
 }
 
-/// GitHub's latest release; None offline, on a 404 (nothing published yet) or a bad answer: logged only.
-async fn latest() -> Option<(String, String)> {
-    match isle_platform_win::weather::fetch_github(updates::LATEST, concat!("Cimori/", env!("CARGO_PKG_VERSION"))).await {
-        Ok(json) => updates::parse_latest(&json).or_else(|| {
-            tracing::info!("atualizações: resposta sem versão");
-            None
-        }),
+/// What GitHub said of the latest release.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Checked {
+    Found(updates::Latest),
+    /// A 404: nothing published yet.
+    NothingPublished,
+    /// Offline or a bad answer (logged).
+    Failed,
+}
+
+async fn latest() -> Checked {
+    match isle_platform_win::weather::fetch_github_opt(updates::LATEST, AGENT).await {
+        Ok(Some(json)) => updates::parse_latest(&json).map_or_else(
+            || {
+                tracing::info!("atualizações: resposta sem versão");
+                Checked::Failed
+            },
+            Checked::Found,
+        ),
+        Ok(None) => Checked::NothingPublished,
         Err(err) => {
             tracing::info!("atualizações: não deu para consultar o GitHub: {err:#}");
-            None
+            Checked::Failed
         }
     }
+}
+
+/// The new version's installer, downloaded beside the other temporary files and checked against
+/// its release's SHA256SUMS.txt.
+async fn fetch_installer(latest: updates::Latest) -> Result<std::path::PathBuf, String> {
+    use isle_platform_win::weather::{download, fetch_url_text};
+    let (name, url) = latest.installer.ok_or("Esta versão não tem instalador")?;
+    let sums_url = latest.sums.ok_or("Esta versão não tem SHA256SUMS.txt")?;
+    let sums = fetch_url_text(&sums_url).await.map_err(|err| format!("Não deu para baixar os hashes: {err}"))?;
+    let expected = updates::expected_sha256(&sums, &name).ok_or("O instalador não está nos hashes da versão")?;
+    let bytes = download(&url, AGENT).await.map_err(|err| format!("Não deu para baixar: {err}"))?;
+    if isle_platform_win::files::sha256_hex(&bytes).as_deref() != Some(expected.as_str()) {
+        return Err("O instalador baixado não confere com o hash da versão; nada foi instalado".into());
+    }
+    let path = std::env::temp_dir().join(&name);
+    std::fs::write(&path, bytes).map_err(|err| format!("Não deu para salvar o instalador: {err}"))?;
+    Ok(path)
 }
 
 impl IsleApp {
@@ -43,37 +77,87 @@ impl IsleApp {
         let Some(Services { rt, tx, waker }) = self.services.clone() else { return };
         self.release.task = Some(rt.spawn(async move {
             loop {
-                send(&tx, &waker, AppEvent::Update(latest().await));
+                send(&tx, &waker, AppEvent::Update { checked: latest().await, manual: false });
                 tokio::time::sleep(Duration::from_secs(updates::EVERY_SECS)).await;
             }
         }));
     }
 
-    /// "Verificar agora": one look, whatever the option.
+    /// "Buscar atualizações": one look, whatever the option; the answer shows here, not on the island.
     pub(super) fn check_updates_now(&mut self) {
         let Some(Services { rt, tx, waker }) = self.services.clone() else { return };
-        self.release.status = "Verificando…".into();
-        rt.spawn(async move { send(&tx, &waker, AppEvent::Update(latest().await)) });
+        self.release.status = "Buscando…".into();
+        rt.spawn(async move { send(&tx, &waker, AppEvent::Update { checked: latest().await, manual: true }) });
     }
 
-    /// What GitHub said: a newer version is announced once on the island and offered in Sobre.
-    pub(super) fn apply_update(&mut self, found: Option<(String, String)>) {
+    /// What GitHub said: a newer version is offered in Atualizações and, found by the daily look,
+    /// announced once on the island (its click opens that tab).
+    pub(super) fn apply_update(&mut self, checked: Checked, manual: bool) {
         let current = env!("CARGO_PKG_VERSION");
-        match found {
-            Some((version, page)) if updates::is_newer(&version, current) => {
-                self.release.status = format!("Cimori {version} disponível");
-                if self.release.told.as_deref() != Some(version.as_str()) {
-                    self.alert(&format!("Cimori {version} disponível"), "Baixe em Configurações → Sobre", None);
-                    self.release.told = Some(version.clone());
+        match checked {
+            Checked::Found(latest) if updates::is_newer(&latest.version, current) => {
+                let version = latest.version.clone();
+                if !self.release.installing {
+                    self.release.status = format!("Cimori {version} disponível (você tem a {current})");
                 }
-                self.release.newer = Some((version, page));
+                if !manual && self.release.told.as_deref() != Some(version.as_str()) {
+                    self.alerts.push_back((
+                        format!("Cimori {version} disponível"),
+                        "Toque para atualizar".into(),
+                        Some(Opens::Settings(isle_core::prefs::SettingsTab::Updates)),
+                    ));
+                    self.release.told = Some(version);
+                }
+                self.release.newer = Some(latest);
             }
-            Some(_) => {
+            Checked::Found(_) | Checked::NothingPublished => {
                 self.release.status = format!("Você tem a versão mais nova ({current})");
                 self.release.newer = None;
             }
-            None => self.release.status = "Não deu para verificar agora".into(),
+            Checked::Failed => self.release.status = "Não deu para verificar agora; veja a internet".into(),
         }
+        self.settings_changed();
+    }
+
+    /// "Baixar e instalar": the installer downloaded and checked, then run (`run_installer`).
+    pub(super) fn install_update(&mut self) {
+        let Some(latest) = self.release.newer.clone().filter(|l| l.installer.is_some()) else { return };
+        if self.release.installing {
+            return;
+        }
+        let Some(Services { rt, tx, waker }) = self.services.clone() else { return };
+        self.release.installing = true;
+        self.release.status = format!("Baixando a Cimori {}…", latest.version);
+        self.settings_changed();
+        rt.spawn(async move { send(&tx, &waker, AppEvent::Installer(fetch_installer(latest).await)) });
+    }
+
+    /// The checked installer runs on its own: it closes this Cimori, updates it and opens the new
+    /// one; the settings are saved first.
+    pub(super) fn run_installer(&mut self, result: Result<std::path::PathBuf, String>) {
+        self.release.installing = false;
+        match result {
+            Ok(path) => {
+                tracing::info!("atualizações: instalando {}", path.display());
+                self.release.status = "Instalando; a Cimori vai fechar e abrir de novo".into();
+                self.save_config();
+                if !cfg!(test) {
+                    let started = std::process::Command::new(&path).args(["/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]).spawn();
+                    if let Err(err) = started {
+                        tracing::warn!("atualizações: o instalador não abriu: {err}");
+                        self.release.status = format!("O instalador não abriu: {err}");
+                    }
+                }
+            }
+            Err(why) => {
+                tracing::warn!("atualizações: {why}");
+                self.release.status = why;
+            }
+        }
+        self.settings_changed();
+    }
+
+    fn settings_changed(&mut self) {
         if self.settings.open {
             self.refresh_settings_view();
             self.settings.dirty = true;
@@ -118,11 +202,11 @@ impl IsleApp {
         self.settings.dirty = true;
     }
 
-    /// "Baixar": the release's page (always under the repository's releases).
+    /// "Novidades da versão": the release's page (always under the repository's releases).
     pub(super) fn open_update_page(&self) {
-        if let Some((_, page)) = &self.release.newer {
-            if page.starts_with(updates::RELEASES) && !cfg!(test) {
-                isle_platform_win::files::shell_open(page);
+        if let Some(latest) = &self.release.newer {
+            if latest.page.starts_with(updates::RELEASES) && !cfg!(test) {
+                isle_platform_win::files::shell_open(&latest.page);
             }
         }
     }
@@ -133,18 +217,36 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_newer_version_is_announced_once_and_offered() {
+    fn a_newer_version_is_announced_once_by_the_daily_look_and_offered() {
         let mut app = IsleApp::new(IsleConfig::default());
-        let page = "https://github.com/Vini-Paixao/Cimori/releases/tag/v99.0.0".to_string();
-        app.apply_update(Some(("99.0.0".into(), page.clone())));
-        assert_eq!(app.release.newer, Some(("99.0.0".into(), page.clone())));
+        let latest = updates::Latest { version: "99.0.0".into(), page: updates::RELEASES.into(), ..Default::default() };
+        // "Buscar atualizações": shown in the tab, no banner.
+        app.apply_update(Checked::Found(latest.clone()), true);
+        assert_eq!(app.release.newer, Some(latest.clone()));
+        assert!(app.alerts.is_empty());
+        // The daily look: one banner, leading to Atualizações.
+        app.apply_update(Checked::Found(latest.clone()), false);
         assert_eq!(app.alerts.len(), 1);
-        app.apply_update(Some(("99.0.0".into(), page)));
+        assert_eq!(app.alerts[0].2, Some(Opens::Settings(isle_core::prefs::SettingsTab::Updates)));
+        app.apply_update(Checked::Found(latest), false);
         assert_eq!(app.alerts.len(), 1, "the same version is not announced again");
-        app.apply_update(Some((env!("CARGO_PKG_VERSION").into(), String::new())));
+        let current = updates::Latest { version: env!("CARGO_PKG_VERSION").into(), ..Default::default() };
+        app.apply_update(Checked::Found(current), false);
         assert!(app.release.newer.is_none());
-        app.apply_update(None);
-        assert_eq!(app.release.status, "Não deu para verificar agora");
+        // Nothing published yet is no failure.
+        app.apply_update(Checked::NothingPublished, true);
+        assert!(app.release.status.starts_with("Você tem a versão mais nova"));
+        app.apply_update(Checked::Failed, true);
+        assert!(app.release.status.starts_with("Não deu para verificar"));
+    }
+
+    #[test]
+    fn a_failed_download_says_why_and_can_be_tried_again() {
+        let mut app = IsleApp::new(IsleConfig::default());
+        app.release.installing = true;
+        app.run_installer(Err("O instalador baixado não confere com o hash da versão; nada foi instalado".into()));
+        assert!(!app.release.installing);
+        assert!(app.release.status.contains("hash"));
     }
 }
 

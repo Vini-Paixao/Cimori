@@ -238,9 +238,9 @@ pub struct IsleApp {
     agenda_countdown: Option<String>,
     /// Reminders and timer ends waiting for the main island: shown one at a time (title, text,
     /// and the tab a click on it opens).
-    alerts: std::collections::VecDeque<(String, String, Option<TabPage>)>,
+    alerts: std::collections::VecDeque<(String, String, Option<Opens>)>,
     /// The alert banner showing now and the tab its click opens.
-    alert_banner: Option<(PillMode, TabPage)>,
+    alert_banner: Option<(PillMode, Opens)>,
     /// Manual reminders (isle's, kept until shown) and what's typed for a new one.
     reminders: isle_core::reminders::Reminders,
     reminder_draft: isle_core::notifications::Reply,
@@ -335,6 +335,7 @@ impl IsleApp {
         let config_timer_ms = config.timer_default_secs.max(60) as i64 * 1000;
         let mut overlay = MultiMonitorOverlay::new(config.monitors.clone(), config.all_monitors, config.main_monitor.clone(),
         ); overlay.over_fullscreen = config.over_fullscreen;
+        overlay.hide_maximized = config.hide_maximized;
         overlay.follow_mouse = config.ui.follow_mouse;
         let pomodoro = Pomodoro::new(PomodoroConfig {
             focus_minutes: config.pomodoro_focus_secs / 60,
@@ -577,7 +578,7 @@ impl IsleApp {
 
     /// Something the main island should say (a reminder, a timer's end): queued, shown when it can.
     fn alert(&mut self, title: &str, text: &str, opens: Option<TabPage>) {
-        self.alerts.push_back((title.to_owned(), text.to_owned(), opens));
+        self.alerts.push_back((title.to_owned(), text.to_owned(), opens.map(Opens::Tab)));
     }
 
     /// The next queued alert as a banner, when the main island is free: compact or hidden (no
@@ -629,6 +630,11 @@ impl IsleApp {
         self.state.notifications.per_page = c.notifications_per_page as usize;
         self.state.notification_page = self.state.notification_page.min(self.state.notifications.last_page());
         self.overlay.over_fullscreen = c.over_fullscreen;
+        self.overlay.hide_maximized = c.hide_maximized;
+        #[cfg(windows)]
+        if (old.over_fullscreen, old.hide_maximized) != (c.over_fullscreen, c.hide_maximized) {
+            self.overlay.step_aside();
+        }
         let monitors_changed = (&old.monitors, old.all_monitors, &old.main_monitor)
             != (&c.monitors, c.all_monitors, &c.main_monitor) || old.ui.follow_mouse != c.ui.follow_mouse;
         if monitors_changed {
@@ -683,13 +689,13 @@ impl IsleApp {
         if !m.agenda || agenda_source(old) != agenda_source(&c) {
             self.stop_service("agenda");
         }
-        if !ai(&c) {
+        if !ai(&c) || old.claude_renew_login != c.claude_renew_login {
             self.stop_service("usage");
         }
         if !m.tray && was.tray {
             self.stop_service("tray");
         }
-        if old.modules != c.modules || old.weather != c.weather || agenda_source(old) != agenda_source(&c) {
+        if old.modules != c.modules || old.weather != c.weather || old.claude_renew_login != c.claude_renew_login || agenda_source(old) != agenda_source(&c) {
             self.start_modules();
         }
         self.keep_visible_tabs();
@@ -1124,8 +1130,17 @@ impl IsleApp {
                     main.morph(COMPACT);
                     main.geom.glow_intensity.set_target(0.0);
                     if let Some((n,_)) = banner { self.apply_ui_action_on(0, UiAction::ReadNotification(n.id,n.arrival_ms)); }
-                } else if let Some((_, tab)) = self.alert_banner.take().filter(|(mode, _)| island == 0 && *mode == self.islands[0].mode) {
-                    self.apply_ui_action_on(0, UiAction::SwitchTab(tab));
+                } else if let Some((_, opens)) = self.alert_banner.take().filter(|(mode, _)| island == 0 && *mode == self.islands[0].mode) {
+                    match opens {
+                        Opens::Tab(tab) => self.apply_ui_action_on(0, UiAction::SwitchTab(tab)),
+                        Opens::Settings(tab) => {
+                            let main = &mut self.islands[0];
+                            main.mode = PillMode::CompactBar;
+                            main.morph(COMPACT);
+                            self.open_settings();
+                            self.settings_action(isle_render::settings::SettingsAction::Tab(tab));
+                        }
+                    }
                 } else {
                     // Opening: on "Aba ao abrir" (isle's _defaultPage), the assistant closed.
                     let opening = matches!(self.island(island).mode, PillMode::CompactBar | PillMode::AlertBanner { .. });
@@ -2024,7 +2039,8 @@ impl IsleApp {
                     AppEvent::BackupFile { save, path } => self.backup_picked(save, path),
                     AppEvent::Phase8(event) => self.apply_phase8_event(event),
                     AppEvent::Icons(event) => self.apply_icons(event),
-                    AppEvent::Update(found) => self.apply_update(found),
+                    AppEvent::Update { checked, manual } => self.apply_update(checked, manual),
+                    AppEvent::Installer(result) => self.run_installer(result),
                 }
             }
 
@@ -2126,8 +2142,17 @@ enum AppEvent {
     /// The backup file picked in Windows' dialog (`save`: export), None if cancelled.
     BackupFile { save: bool, path: Option<std::path::PathBuf> },
     Phase8(phase8::Event),
-    /// GitHub's latest release (version, page); None when it could not say.
-    Update(Option<(String, String)>),
+    /// What GitHub said of the latest release; `manual`: "Buscar atualizações" asked.
+    Update { checked: release::Checked, manual: bool },
+    /// The new version's installer, downloaded and checked (or why not).
+    Installer(Result<std::path::PathBuf, String>),
+}
+
+/// Where a banner's click leads: a tab of the island, or one of the settings.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Opens {
+    Tab(TabPage),
+    Settings(isle_core::prefs::SettingsTab),
 }
 
 fn send(tx: &std::sync::mpsc::Sender<AppEvent>, waker: &Waker, event: AppEvent) {
@@ -2209,7 +2234,8 @@ impl IsleApp {
                     });
                 }
                 "usage" => {
-                    self.usage_task = Some(rt.spawn(isle_ai::usage::run(move |providers| send(&tx, &waker, AppEvent::Usage(providers)))));
+                    let renew = self.config.claude_renew_login;
+                    self.usage_task = Some(rt.spawn(isle_ai::usage::run(renew, move |providers| send(&tx, &waker, AppEvent::Usage(providers)))));
                 }
                 "weather" => {
                     let weather = self.config.weather.clone();
@@ -3162,7 +3188,7 @@ mod control_tests {
         app.remind_agenda(100 * 1440 + 600);
         assert_eq!(app.alerts.len(), 6);
         assert_eq!(app.alerts.back().unwrap().1, "e mais 2 lembretes");
-        assert!(app.alerts.iter().all(|a| a.2 == Some(TabPage::CalendarWeather)));
+        assert!(app.alerts.iter().all(|a| a.2 == Some(Opens::Tab(TabPage::CalendarWeather))));
         app.remind_agenda(100 * 1440 + 601);
         assert_eq!(app.alerts.len(), 6, "each event once");
     }

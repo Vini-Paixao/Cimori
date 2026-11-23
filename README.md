@@ -24,8 +24,9 @@ de zickrian, e o [Mac Island & Dock](https://island.caliberda.com.br), mod do Wi
 - **Clima**, **área de transferência** com histórico, **prateleira** de arquivos com envio pelo
   celular (QR na rede local), **dispositivos USB**, **downloads** e a **bandeja** dos outros apps.
 - **Configurações** completas numa janela própria, com busca, backup e "Sobre".
-- **Atualizações**: avisa quando sai uma versão nova no GitHub (pode desligar). Nada é instalado
-  sozinho.
+- **Atualizações**: avisa na ilha quando sai uma versão nova no GitHub (pode desligar) e, na aba
+  Atualizações, busca na hora e baixa e instala a versão nova com um clique, conferindo o SHA-256 do
+  instalador. Nada é instalado sem você pedir.
 
 ## Requisitos
 
@@ -95,6 +96,8 @@ A Cimori não tem conta, telemetria nem servidor próprio. Ela só acessa a inte
 | Sua agenda | O endereço .ics que você colar | Módulo Agenda com endereço |
 | Pacotes de ícones | jsDelivr (`cdn.jsdelivr.net`) | Uma vez, ao escolher um pacote on-line |
 | Atualizações | GitHub (`api.github.com`) | Ao abrir e uma vez por dia; pode desligar |
+| Instalar uma versão nova | GitHub (`github.com` e o download do instalador) | Só ao clicar em "Baixar e instalar" |
+| Login do Claude | `platform.claude.com`, com o login do Claude Code | Opção "Renovar o login do Claude sozinha" ligada, quando ele vence |
 | Cotas dos agentes | `api.anthropic.com`, `chatgpt.com`, com o login que o Claude Code e o Codex já têm | Módulo IA ligado |
 
 O chat da IA roda os programas `claude`, `codex` ou `opencode` instalados na sua máquina. O

@@ -27,17 +27,18 @@ pub enum SettingsTab {
     Downloads,
     Shortcuts,
     Backup,
+    Updates,
     About,
     /// The first run's steps (Mac Island & Dock's setup assistant): `WELCOME`.
     Welcome,
 }
 
 impl SettingsTab {
-    pub const ALL: [Self; 23] = [
+    pub const ALL: [Self; 24] = [
         Self::General, Self::Bar, Self::Look, Self::Monitors, Self::Hiding, Self::Animations,
         Self::Icons,
         Self::Ai, Self::Control, Self::Agenda, Self::Weather, Self::Media, Self::Notifications,
-        Self::Focus, Self::Tray, Self::Clipboard, Self::Shelf, Self::Usb, Self::Downloads, Self::Shortcuts, Self::Backup, Self::About, Self::Welcome,
+        Self::Focus, Self::Tray, Self::Clipboard, Self::Shelf, Self::Usb, Self::Downloads, Self::Shortcuts, Self::Backup, Self::Updates, Self::About, Self::Welcome,
     ];
     pub fn title(self) -> &'static str {
         match self {
@@ -62,6 +63,7 @@ impl SettingsTab {
             Self::Downloads => "Downloads",
             Self::Shortcuts => "Atalhos",
             Self::Backup => "Backup",
+            Self::Updates => "Atualizações",
             Self::About => "Sobre",
             Self::Welcome => "Boas-vindas",
         }
@@ -89,6 +91,7 @@ impl SettingsTab {
             Self::Downloads => "Atividade de downloads no Windows",
             Self::Shortcuts => "Teclas da Cimori",
             Self::Backup => "Guardar e restaurar as configurações",
+            Self::Updates => "Versões novas da Cimori",
             Self::About => "Versão e créditos",
             Self::Welcome => "Primeiros passos na Cimori",
         }
@@ -96,7 +99,7 @@ impl SettingsTab {
     pub fn group(self) -> &'static str {
         match self {
             Self::General | Self::Bar | Self::Look | Self::Icons | Self::Monitors | Self::Hiding | Self::Animations => "Ilha",
-            Self::Shortcuts | Self::Backup | Self::About | Self::Welcome => "Cimori",
+            Self::Shortcuts | Self::Backup | Self::Updates | Self::About | Self::Welcome => "Cimori",
             _ => "Módulos",
         }
     }
@@ -141,6 +144,7 @@ impl SettingsTab {
             Self::Downloads => "downloads",
             Self::Shortcuts => "shortcuts",
             Self::Backup => "backup",
+            Self::Updates => "updates",
             Self::About => "about",
             Self::Welcome => "welcome",
         }
@@ -168,6 +172,7 @@ pub enum ActionId {
     OpenLink(&'static str),
     CheckUpdates,
     DownloadUpdate,
+    InstallUpdate,
     WelcomeBack,
     WelcomeNext,
     WelcomeFinish,
@@ -533,6 +538,9 @@ static PREFS: &[Pref] = &[
             if let Some(value) = crate::config::HideWhen::ALL.get(i) { c.ui.hide_when = *value; }
         },
         enabled: |c| c.auto_hide, restart: false },
+    switch!("hide_maximized", Hiding, "Sumir", "Sumir com janela maximizada",
+        "A ilha some de vez, como em jogos e vídeos em tela cheia, enquanto houver uma janela maximizada no monitor dela, como um navegador com as abas no topo. Nesse tempo, avisos e pedidos de permissão não aparecem",
+        "esconder sumir maximizada navegador chrome abas tela cheia", hide_maximized, always),
     slider!("ui.hide_delay_ms", Hiding, "Recolhimento", "Tempo até recolher", "Depois que o mouse sai", "esconder atraso", 0.2..8.0 step 0.1 "s", ui.hide_delay_ms / 1000 as u32, always),
     slider!("ui.line_expire_secs", Hiding, "Linha minimizada", "Apagar a linha depois de", "Zero mantém a linha visível", "esconder linha", 0.0..600.0 step 5.0 "s", ui.line_expire_secs / 1 as u32, |c| c.auto_hide),
     switch!("ui.line_click", Hiding, "Linha minimizada", "Reabrir a linha com clique", "Passe o mouse para indicar onde clicar", "esconder clicar mouse", ui.line_click, |c| c.auto_hide),
@@ -553,6 +561,9 @@ static PREFS: &[Pref] = &[
     Pref { id: "opencode_api_key", tab: SettingsTab::Ai, card: "Agentes", name: "Chave do OpenCode Go", desc: "",
         words: "opencode api chave", kind: PrefKind::Text { secret: true, placeholder: "sk-..." },
         get: |c| text_opt(&c.opencode_api_key), set: |c, v| set_opt(&mut c.opencode_api_key, v), enabled: on_ai, restart: false },
+    switch!("claude_renew_login", Ai, "Cotas", "Renovar o login do Claude sozinha",
+        "Ligado: quando o login do Claude Code vence neste PC, a Cimori o renova no arquivo do Claude Code, e as cotas seguem certas mesmo usando o Claude Code só em outro computador (SSH). Desligado: as cotas param até você abrir o Claude Code aqui",
+        "uso cota login renovar ssh token vencido", claude_renew_login, on_ai),
     switch!("quota_alerts", Ai, "Cotas", "Avisar perto do limite", "Em 80% e 95%, e \"de volta!\" na renovação", "uso cota limite", quota_alerts, on_ai),
     info!("info.hooks", Ai, "Hooks", "Estado dos hooks"),
     Pref { id: "hooks_token", tab: SettingsTab::Ai, card: "Hooks", name: "Token compartilhado", desc: "64 caracteres hexadecimais; reinstale os hooks após mudar", words: "hooks token segurança", kind: PrefKind::Text { secret: true, placeholder: "Gerado automaticamente" }, get: |c| text_opt(&c.hooks_token), set: |c, v| if let PrefValue::Text(text) = v { let text = text.trim(); if text.len() == 64 && text.bytes().all(|b| b.is_ascii_hexdigit()) { c.hooks_token = Some(text.into()); } }, enabled: on_ai, restart: true },
@@ -714,10 +725,16 @@ static PREFS: &[Pref] = &[
     link!("link.issues", About, "Cimori", "Reportar um problema", "Bugs e ideias, pelas issues do GitHub", ISSUES),
     Pref { desc: "Software livre: use, estude, mude e compartilhe", words: "licença gpl", ..link!("link.license", About, "Cimori", "Licença GPL-3.0", "", LICENSE) },
     action!("action.show_welcome", About, "Cimori", "Mostrar boas-vindas de novo", "Aparência, hooks dos agentes e a ponte do Windhawk", "boas-vindas primeiros passos tutorial", ShowWelcome),
-    switch!("check_updates", About, "Atualizações", "Verificar atualizações", "Ao abrir e uma vez por dia, no GitHub; nada é instalado sozinho", "atualização versão nova github", check_updates, always),
-    info!("info.update", About, "Atualizações", "Estado"),
-    action!("action.check_updates", About, "Atualizações", "Verificar agora", "", "atualização versão", CheckUpdates),
-    action!("action.download_update", About, "Atualizações", "Nova versão", "Abre a página da versão no GitHub", "atualização baixar download", DownloadUpdate),
+    // Atualizações
+    Pref { words: "atualização versão", ..info!("info.update", Updates, "Versão", "Estado") },
+    action!("action.check_updates", Updates, "Versão", "Buscar atualizações", "Consulta o GitHub agora", "atualização versão buscar verificar", CheckUpdates),
+    action!("action.install_update", Updates, "Versão", "Baixar e instalar",
+        "Baixa o instalador da versão nova no GitHub, confere o SHA-256 e instala. A Cimori fecha e abre de novo sozinha, com as suas configurações",
+        "atualização baixar instalar atualizar", InstallUpdate),
+    action!("action.download_update", Updates, "Versão", "Novidades da versão", "Abre a página da versão no GitHub", "atualização novidades changelog", DownloadUpdate),
+    switch!("check_updates", Updates, "Automático", "Buscar atualizações sozinha",
+        "Ao abrir e uma vez por dia. Com uma versão nova, um aviso na ilha leva a esta aba; nada é instalado sem você pedir",
+        "atualização versão nova github automático aviso", check_updates, always),
     link!("link.isle", About, "Créditos", "isle", "zickrian · GPL-3.0 · base da ilha e dos agentes", "https://github.com/zickrian/isle"),
     link!("link.mac_island", About, "Créditos", "Mac Island & Dock", "caliberda · GPL-3.0 · opções e módulos", "https://island.caliberda.com.br"),
     Pref { desc: "Fluent, Ionicons, Tabler, Phosphor, Bootstrap, Iconoir, Heroicons", words: "ícones licença", ..info!("info.credits_mit", About, "Créditos", "Pacotes de ícones (MIT)") },

@@ -166,7 +166,7 @@ fn main() -> Result<()> {
     // The AIs' limits as the island reads them on this machine, once (to check a sign-in).
     if args.iter().any(|a| a == "--usage") {
         let rt = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
-        rt.block_on(isle_ai::usage::run(|providers| {
+        rt.block_on(isle_ai::usage::run(false, |providers| {
             println!("{}", serde_json::to_string_pretty(&providers).unwrap_or_default());
             std::process::exit(0);
         }));

@@ -2,7 +2,8 @@
 //! the geometry that both drawing and clicks use.
 mod layout;
 
-pub use layout::{CardBox, Hit, Layout, NavEntry, RowBox, action_label, chip_items, control_rect, hit, layout, monitor_rects, slider_value};
+pub use layout::{CardBox, Hit, Layout, NavEntry, RowBox, action_label, chip_items, control_rect, desc_lines, hit, layout, monitor_rects, name_room, slider_value};
+pub use layout::DESC;
 pub use layout::{HEADER, NAV_NARROW, NAV_W};
 pub use layout::{listed, strip_pref};
 
@@ -37,8 +38,10 @@ pub struct SettingsView {
     pub just_recorded: bool,
     /// The blinking caret of the field being typed in: whether this frame draws it.
     pub caret: bool,
-    /// A newer Cimori found on GitHub (its version): Sobre shows "Baixar".
+    /// A newer Cimori found on GitHub (its version): Atualizações shows its page.
     pub update: Option<String>,
+    /// Its installer can be downloaded and installed from here ("Baixar e instalar").
+    pub update_installable: bool,
     /// The welcome's step (`prefs::WELCOME`).
     pub welcome_step: usize,
 }
@@ -64,6 +67,7 @@ impl Default for SettingsView {
             just_recorded: false,
             caret: true,
             update: None,
+            update_installable: false,
             welcome_step: 0,
         }
     }

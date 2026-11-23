@@ -51,7 +51,8 @@ Name: "{userprograms}\Cimori"; Filename: "{app}\Cimori.exe"
 Name: "{userdesktop}\Cimori"; Filename: "{app}\Cimori.exe"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\Cimori.exe"; Description: "{cm:LaunchProgram,Cimori}"; Flags: nowait postinstall skipifsilent
+; Not skipped when silent: an update from the app (/SILENT) opens the new Cimori again.
+Filename: "{app}\Cimori.exe"; Description: "{cm:LaunchProgram,Cimori}"; Flags: nowait postinstall
 
 [UninstallRun]
 ; The AI hooks would run a Cimori that is gone: taken out of Claude Code and Codex, the user's own kept.

@@ -2,6 +2,23 @@
 
 Todas as mudanças relevantes da Cimori. Versões no formato [SemVer](https://semver.org/lang/pt-BR/).
 
+## [1.0.1] — 2026-11-23
+
+### Novo
+- Aba **Atualizações**: buscar atualizações na hora e **baixar e instalar** a versão nova com um
+  clique (o instalador vem do GitHub e só roda se o SHA-256 conferir; a Cimori fecha, atualiza e abre
+  de novo com as suas configurações). A busca automática avisa na ilha, e o aviso abre esta aba.
+- **Sumir com janela maximizada** (Esconder): a ilha some de vez, como em jogos e vídeos em tela
+  cheia, enquanto houver uma janela maximizada no monitor dela, como um navegador com as abas no topo.
+- **Renovar o login do Claude sozinha** (IA e agentes, desligada por padrão): com o Claude Code usado
+  só em outro computador (por SSH), as cotas do Claude seguem certas neste PC.
+
+### Corrigido
+- "Verificar agora" dizia "Não deu para verificar agora" enquanto nenhuma versão estava publicada.
+- Com o login do Claude Code vencido neste PC, o painel de uso diz como voltar a ver as cotas, em vez
+  de parecer travado.
+- Descrições das configurações quebram em várias linhas em vez de serem cortadas.
+
 ## [1.0.0] — 2026-11
 
 Primeira versão pública.
@@ -36,4 +53,5 @@ Primeira versão pública.
 - `Cimori.exe` com ícone e informações de versão; pasta `%APPDATA%\Cimori` (a antiga `isle-win` é
   movida na primeira abertura).
 
+[1.0.1]: https://github.com/Vini-Paixao/Cimori/releases/tag/v1.0.1
 [1.0.0]: https://github.com/Vini-Paixao/Cimori/releases/tag/v1.0.0

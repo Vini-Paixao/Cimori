@@ -5,8 +5,9 @@
 // notes in Portuguese, no Grok. Plan names from crates/isle-daemon/src/assistant/models.rs (claude_plan, codex_plan).
 
 //! AI plan usage: Claude's and Codex's limits, read where each CLI's /usage or /status reads them, with the
-//! sign-ins the CLIs keep on this machine (read, never refreshed: that is each CLI's to do). Codex's session
-//! logs fill in between asks.
+//! sign-ins the CLIs keep on this machine. With the `claude_renew_login` option, Claude's is renewed when it ran
+//! out and no Claude Code renewed it (Claude Code used on another computer); Codex's is never renewed. Codex's
+//! session logs fill in between asks.
 
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -52,8 +53,10 @@ fn codex_dir() -> PathBuf {
 /// Why Claude's limits could not be read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum ClaudeError {
-    /// The sign-in ran out; Claude Code renews it once opened.
+    /// The sign-in ran out a moment ago; a running Claude Code (or Cimori, soon) renews it.
     NeedsRefresh,
+    /// The sign-in ran out and Cimori may not renew it: only Claude Code opened here does.
+    Expired,
     /// No sign-in, or the server turned it down.
     SignIn,
     /// No network (yet).
@@ -65,7 +68,10 @@ enum ClaudeError {
 impl ClaudeError {
     fn note(self) -> &'static str {
         match self {
-            ClaudeError::NeedsRefresh => "Abra o Claude Code para renovar o login",
+            ClaudeError::NeedsRefresh => "Login do Claude vencido; renovando em instantes",
+            ClaudeError::Expired => {
+                "Login do Claude vencido neste PC: abra o Claude Code aqui ou ligue \"Renovar o login do Claude sozinha\" nas configurações"
+            }
             ClaudeError::SignIn => "Entre de novo no Claude Code",
             ClaudeError::Offline => "Sem internet; últimos números",
             ClaudeError::Busy => "Claude não respondeu; últimos números",
@@ -75,7 +81,7 @@ impl ClaudeError {
     /// How long until Claude is asked again.
     fn wait(self) -> Duration {
         match self {
-            ClaudeError::NeedsRefresh | ClaudeError::Offline => RETRY_SOON,
+            ClaudeError::NeedsRefresh | ClaudeError::Expired | ClaudeError::Offline => RETRY_SOON,
             ClaudeError::SignIn | ClaudeError::Busy => CLAUDE_BACKOFF,
         }
     }
@@ -89,15 +95,99 @@ fn client() -> reqwest::Result<reqwest::Client> {
         .build()
 }
 
-/// Claude's limits now, with Claude Code's sign-in.
-async fn read_claude() -> Result<Vec<Window>, ClaudeError> {
-    let text = std::fs::read_to_string(claude_dir().join(".credentials.json")).map_err(|_| ClaudeError::SignIn)?;
+/// Where Claude Code renews its sign-in, and as which app (read from Claude Code itself).
+const CLAUDE_TOKEN_URL: &str = "https://platform.claude.com/v1/oauth/token";
+const CLAUDE_CLIENT_ID: &str = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
+/// A running Claude Code renews its sign-in before it runs out; only one out this long has no Claude Code
+/// to renew it, so Cimori does, never racing it.
+const RENEW_AFTER_MS: i64 = 5 * 60 * 1000;
+
+/// Claude Code's sign-in; with `renew`, renewed in its own file when it ran out a while ago (when Claude Code
+/// is used only on another computer, nothing else renews it here).
+async fn claude_token(renew_login: bool) -> Result<String, ClaudeError> {
+    let path = claude_dir().join(".credentials.json");
+    let text = std::fs::read_to_string(&path).map_err(|_| ClaudeError::SignIn)?;
     let sign_in: Value = serde_json::from_str(&text).map_err(|_| ClaudeError::SignIn)?;
     let oauth = &sign_in["claudeAiOauth"];
     let token = oauth["accessToken"].as_str().ok_or(ClaudeError::SignIn)?;
-    if oauth["expiresAt"].as_i64().is_some_and(|expires| expires <= now_ms()) {
+    let Some(expires) = oauth["expiresAt"].as_i64().filter(|&e| e <= now_ms()) else {
+        return Ok(token.to_owned());
+    };
+    if !renew_login {
+        return Err(ClaudeError::Expired);
+    }
+    let refresh = oauth["refreshToken"].as_str().ok_or(ClaudeError::SignIn)?;
+    if now_ms() - expires < RENEW_AFTER_MS {
         return Err(ClaudeError::NeedsRefresh);
     }
+    let scopes: Vec<&str> = oauth["scopes"].as_array().map_or(Vec::new(), |s| s.iter().filter_map(Value::as_str).collect());
+    let reply = client()
+        .map_err(|_| ClaudeError::Busy)?
+        .post(CLAUDE_TOKEN_URL)
+        .json(&serde_json::json!({
+            "grant_type": "refresh_token",
+            "refresh_token": refresh,
+            "client_id": CLAUDE_CLIENT_ID,
+            "scope": scopes.join(" "),
+        }))
+        .send()
+        .await
+        .map_err(|_| ClaudeError::Offline)?;
+    match reply.status().as_u16() {
+        400 | 401 | 403 => return Err(ClaudeError::SignIn),
+        s if !(200..300).contains(&s) => return Err(ClaudeError::Busy),
+        _ => {}
+    }
+    let renewed: Value = reply.json().await.map_err(|_| ClaudeError::Busy)?;
+    // Claude Code may have renewed it meanwhile: its file wins, ours is dropped.
+    let now_text = std::fs::read_to_string(&path).map_err(|_| ClaudeError::SignIn)?;
+    let mut now_sign_in: Value = serde_json::from_str(&now_text).map_err(|_| ClaudeError::SignIn)?;
+    let now_oauth = &mut now_sign_in["claudeAiOauth"];
+    if now_oauth["refreshToken"].as_str() != Some(refresh) {
+        return now_oauth["accessToken"].as_str().map(str::to_owned).ok_or(ClaudeError::SignIn);
+    }
+    let token = renew(now_oauth, &renewed, now_ms()).ok_or(ClaudeError::Busy)?;
+    // Written whole and then swapped in, so Claude Code never reads half a file.
+    let temp = path.with_extension("json.cimori");
+    // Owner-only from its first byte (on Windows, the profile folder's permissions are inherited).
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create(true).truncate(true);
+    #[cfg(unix)]
+    std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+    let written = serde_json::to_vec(&now_sign_in).ok().and_then(|bytes| {
+        use std::io::Write;
+        let mut file = options.open(&temp).ok()?;
+        file.write_all(&bytes).and_then(|()| file.sync_all()).ok()?;
+        drop(file);
+        std::fs::rename(&temp, &path).ok()
+    });
+    if written.is_none() {
+        std::fs::remove_file(&temp).ok();
+        tracing::warn!("uso: login do Claude renovado, mas não gravado");
+    } else {
+        tracing::info!("uso: login do Claude renovado");
+    }
+    Ok(token)
+}
+
+/// Claude Code's `claudeAiOauth` after the token endpoint answered `renewed` at `now`; the new access token.
+fn renew(oauth: &mut Value, renewed: &Value, now: i64) -> Option<String> {
+    let token = renewed["access_token"].as_str()?.to_owned();
+    let expires_in = renewed["expires_in"].as_i64()?;
+    oauth["accessToken"] = token.clone().into();
+    if let Some(refresh) = renewed["refresh_token"].as_str() {
+        oauth["refreshToken"] = refresh.into();
+    }
+    oauth["expiresAt"] = (now + expires_in * 1000).into();
+    if let Some(seconds) = renewed["refresh_token_expires_in"].as_i64() {
+        oauth["refreshTokenExpiresAt"] = (now + seconds * 1000).into();
+    }
+    Some(token)
+}
+
+/// Claude's limits now, with Claude Code's sign-in.
+async fn read_claude(renew_login: bool) -> Result<Vec<Window>, ClaudeError> {
+    let token = claude_token(renew_login).await?;
     let reply = client()
         .map_err(|_| ClaudeError::Busy)?
         .get("https://api.anthropic.com/api/oauth/usage")
@@ -384,8 +474,9 @@ fn settle(provider: &mut Provider, now: i64) {
     }
 }
 
-/// Reads both AIs' limits for as long as it runs, handing them to `publish` whenever they change.
-pub async fn run(publish: impl Fn(Vec<Provider>) + Send + 'static) {
+/// Reads both AIs' limits for as long as it runs, handing them to `publish` whenever they change;
+/// `renew_login`: Cimori may renew Claude Code's sign-in (the `claude_renew_login` option).
+pub async fn run(renew_login: bool, publish: impl Fn(Vec<Provider>) + Send + 'static) {
     let mut claude: Option<Provider> = None;
     let mut claude_due = Instant::now();
     let mut codex_live: Option<Provider> = None;
@@ -402,7 +493,7 @@ pub async fn run(publish: impl Fn(Vec<Provider>) + Send + 'static) {
                 ..Provider::default()
             });
             let shell = Provider { plan: claude_plan(), ..shell };
-            claude = Some(match read_claude().await {
+            claude = Some(match read_claude(renew_login).await {
                 Ok(windows) => {
                     claude_due = now + ASK_EVERY;
                     Provider { windows, updated_ms: now_ms(), note: String::new(), ..shell }
@@ -544,6 +635,25 @@ mod tests {
     }
 
     #[test]
+    fn a_renewed_sign_in_keeps_what_claude_code_wrote() {
+        let mut oauth = json!({"accessToken": "old", "refreshToken": "r1", "expiresAt": 1,
+            "scopes": ["user:inference"], "subscriptionType": "pro"});
+        let renewed = json!({"access_token": "new", "refresh_token": "r2", "expires_in": 3600,
+            "refresh_token_expires_in": 7200});
+        assert_eq!(renew(&mut oauth, &renewed, 1_000).as_deref(), Some("new"));
+        assert_eq!(oauth["refreshToken"], "r2");
+        assert_eq!(oauth["expiresAt"], 3_601_000);
+        assert_eq!(oauth["refreshTokenExpiresAt"], 7_201_000);
+        assert_eq!(oauth["subscriptionType"], "pro");
+        // No new refresh token: the old one stays; an error answer changes nothing.
+        let mut kept = json!({"refreshToken": "r1"});
+        renew(&mut kept, &json!({"access_token": "a", "expires_in": 1}), 0).unwrap();
+        assert_eq!(kept["refreshToken"], "r1");
+        assert!(renew(&mut kept, &json!({"error": "invalid_grant"}), 0).is_none());
+        assert_eq!(kept["accessToken"], "a");
+    }
+
+    #[test]
     fn a_window_past_its_reset_starts_over() {
         let mut provider = Provider {
             windows: vec![
@@ -561,6 +671,9 @@ mod tests {
         assert_eq!(ClaudeError::Offline.wait(), RETRY_SOON);
         assert_eq!(ClaudeError::NeedsRefresh.wait(), RETRY_SOON);
         assert_eq!(ClaudeError::SignIn.wait(), CLAUDE_BACKOFF);
-        assert!(ClaudeError::NeedsRefresh.note().contains("Claude Code"));
+        assert_eq!(ClaudeError::Expired.wait(), RETRY_SOON);
+        // Off, the note says how to get the numbers back, so it never looks like a bug.
+        assert!(ClaudeError::Expired.note().contains("abra o Claude Code"));
+        assert!(ClaudeError::Expired.note().contains("Renovar o login do Claude sozinha"));
     }
 }

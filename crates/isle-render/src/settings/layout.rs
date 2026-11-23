@@ -157,9 +157,50 @@ fn choice_width(text: &Text, options: &[&str]) -> f32 {
     options.iter().map(|o| text.width(o, 12.0, Weight::Medium) + 20.0).sum::<f32>() + 6.0
 }
 
+/// Most lines a description wraps to; past them it ends in "…".
+const DESC_LINES: usize = 5;
+
+/// The text under a row's name: its description and, when it waits for a restart, that note.
+fn desc_text(p: &Pref) -> String {
+    match (p.desc.is_empty(), p.restart) {
+        (true, true) => isle_core::prefs::RESTART_NOTE.to_string(),
+        (false, true) => format!("{} · {}", p.desc, isle_core::prefs::RESTART_NOTE),
+        (false, false) => p.desc.to_string(),
+        (true, false) => String::new(),
+    }
+}
+
+/// The room left of a row's control, where its name and description go.
+pub fn name_room(row: &RowBox, text: &Text, view: &SettingsView) -> f32 {
+    if listed(row.pref.id) {
+        return row.w;
+    }
+    let (cx, ..) = control_rect(row, text);
+    match row.pref.kind {
+        PrefKind::Chips | PrefKind::Monitors | PrefKind::CitySearch => row.w,
+        // Its options went below the name: the whole width is the name's.
+        PrefKind::Choice(_) if cx <= row.x => row.w,
+        PrefKind::Slider { .. } => (cx - row.x - 64.0).max(24.0),
+        // An Info row's text lies at its right: the name and description take the rest.
+        PrefKind::Info => (row.w - text.width(view.info(row.pref.id), 12.0, Weight::Regular) - 16.0).max(80.0),
+        _ => (cx - row.x - 12.0).max(80.0),
+    }
+}
+
+/// A row's description as drawn: wrapped to its room, up to `DESC_LINES` lines.
+pub fn desc_lines(row: &RowBox, text: &Text, view: &SettingsView) -> Vec<String> {
+    let desc = desc_text(row.pref);
+    if desc.is_empty() {
+        return Vec::new();
+    }
+    text.wrap(&desc, name_room(row, text, view), 11.5, Weight::Regular, DESC_LINES)
+}
+
 /// The row's height for `w` of room.
-fn row_height(p: &Pref, w: f32, cfg: &IsleConfig, view: &SettingsView, text: &Text) -> (f32, f32) {
-    let head = if p.desc.is_empty() && !p.restart { ROW } else { ROW + DESC };
+fn row_height(p: &'static Pref, w: f32, cfg: &IsleConfig, view: &SettingsView, text: &Text) -> (f32, f32) {
+    let probe = RowBox { pref: p, x: 0.0, y: 0.0, w, h: 0.0, card: String::new(), enabled: true, head: ROW };
+    let lines = desc_lines(&probe, text, view).len();
+    let head = if lines == 0 { ROW } else { ROW + DESC * lines as f32 };
     let below = match p.kind {
         PrefKind::Choice(options) if listed(p.id) => options.len() as f32*34.+6.,
         PrefKind::Chips => {
@@ -256,9 +297,10 @@ pub fn layout(view: &SettingsView, cfg: &IsleConfig, text: &Text, w: f32, h: f32
     } else if welcome {
         prefs::WELCOME[step].1.iter().filter_map(|id| prefs::by_id(id)).filter(|p| p.id != "welcome.back" || step > 0).collect()
     } else {
-        // "Baixar" only when a newer version was found.
+        // A newer version's rows only once one was found; "Baixar e instalar" only with its installer.
         prefs::all().iter().filter(|p| p.tab == view.tab && !(view.tab == SettingsTab::Bar && p.id == strip_pref(cfg))
-            && (p.id != "action.download_update" || view.update.is_some())).collect()
+            && (p.id != "action.download_update" || view.update.is_some())
+            && (p.id != "action.install_update" || view.update_installable)).collect()
     };
     let mut groups: Vec<(String, Vec<&'static Pref>)> = Vec::new();
     for p in found {
@@ -390,7 +432,8 @@ pub fn action_label(p: &Pref) -> &'static str {
             OpenLink(url) if url == isle_core::prefs::LICENSE => "Ler a licença",
             OpenLink(_) => "Abrir site",
             CheckUpdates => "Verificar",
-            DownloadUpdate => "Baixar",
+            DownloadUpdate => "Abrir",
+            InstallUpdate => "Atualizar",
             WelcomeBack => "Voltar",
             WelcomeNext => "Próximo",
             WelcomeFinish => "Concluir",

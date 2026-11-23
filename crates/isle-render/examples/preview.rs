@@ -799,6 +799,7 @@ fn settings_shot_recording(dir: &str, name: &str, (w, h): (u32, u32), scale: f32
     view.info.push(("info.icons","Baixando ícones: 38/61".into()));
     view.info.push(("info.update","Cimori 1.1.0 disponível".into()));
     view.update = Some("1.1.0".into());
+    view.update_installable = true;
     view.info.push(("info.icon_credits","Lucide: ISC · Microsoft e demais autores: MIT · Google: Apache 2.0".into()));
     view.monitors = vec![place(r"\\.\DISPLAY1", 0), place(r"\\.\DISPLAY6", 2560)];
     let mut renderer = PillRenderer::with_scale(w, h, scale);
