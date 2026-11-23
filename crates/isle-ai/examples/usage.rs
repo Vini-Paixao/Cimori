@@ -3,7 +3,7 @@
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
-    isle_ai::usage::run(|providers| {
+    isle_ai::usage::run(false, |providers| {
         println!("{}", serde_json::to_string_pretty(&providers).unwrap_or_default());
         std::process::exit(0);
     })

@@ -2,7 +2,8 @@
 //! the geometry that both drawing and clicks use.
 mod layout;
 
-pub use layout::{CardBox, Hit, Layout, NavEntry, RowBox, action_label, chip_items, control_rect, hit, layout, monitor_rects, slider_value};
+pub use layout::{CardBox, Hit, Layout, NavEntry, RowBox, action_label, chip_items, control_rect, desc_lines, hit, layout, monitor_rects, name_room, slider_value};
+pub use layout::DESC;
 pub use layout::{HEADER, NAV_NARROW, NAV_W};
 pub use layout::{listed, strip_pref};
 

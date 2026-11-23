@@ -335,6 +335,7 @@ impl IsleApp {
         let config_timer_ms = config.timer_default_secs.max(60) as i64 * 1000;
         let mut overlay = MultiMonitorOverlay::new(config.monitors.clone(), config.all_monitors, config.main_monitor.clone(),
         ); overlay.over_fullscreen = config.over_fullscreen;
+        overlay.hide_maximized = config.hide_maximized;
         overlay.follow_mouse = config.ui.follow_mouse;
         let pomodoro = Pomodoro::new(PomodoroConfig {
             focus_minutes: config.pomodoro_focus_secs / 60,
@@ -629,6 +630,11 @@ impl IsleApp {
         self.state.notifications.per_page = c.notifications_per_page as usize;
         self.state.notification_page = self.state.notification_page.min(self.state.notifications.last_page());
         self.overlay.over_fullscreen = c.over_fullscreen;
+        self.overlay.hide_maximized = c.hide_maximized;
+        #[cfg(windows)]
+        if (old.over_fullscreen, old.hide_maximized) != (c.over_fullscreen, c.hide_maximized) {
+            self.overlay.step_aside();
+        }
         let monitors_changed = (&old.monitors, old.all_monitors, &old.main_monitor)
             != (&c.monitors, c.all_monitors, &c.main_monitor) || old.ui.follow_mouse != c.ui.follow_mouse;
         if monitors_changed {
@@ -683,13 +689,13 @@ impl IsleApp {
         if !m.agenda || agenda_source(old) != agenda_source(&c) {
             self.stop_service("agenda");
         }
-        if !ai(&c) {
+        if !ai(&c) || old.claude_renew_login != c.claude_renew_login {
             self.stop_service("usage");
         }
         if !m.tray && was.tray {
             self.stop_service("tray");
         }
-        if old.modules != c.modules || old.weather != c.weather || agenda_source(old) != agenda_source(&c) {
+        if old.modules != c.modules || old.weather != c.weather || old.claude_renew_login != c.claude_renew_login || agenda_source(old) != agenda_source(&c) {
             self.start_modules();
         }
         self.keep_visible_tabs();
@@ -2209,7 +2215,8 @@ impl IsleApp {
                     });
                 }
                 "usage" => {
-                    self.usage_task = Some(rt.spawn(isle_ai::usage::run(move |providers| send(&tx, &waker, AppEvent::Usage(providers)))));
+                    let renew = self.config.claude_renew_login;
+                    self.usage_task = Some(rt.spawn(isle_ai::usage::run(renew, move |providers| send(&tx, &waker, AppEvent::Usage(providers)))));
                 }
                 "weather" => {
                     let weather = self.config.weather.clone();

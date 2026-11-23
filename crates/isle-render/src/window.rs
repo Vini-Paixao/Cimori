@@ -281,6 +281,8 @@ pub struct MultiMonitorOverlay {
     pub main_monitor: Option<String>,
     /// Stay over borderless full-screen apps instead of stepping aside (settings).
     pub over_fullscreen: bool,
+    /// Step aside while a maximized window is on the island's monitor (settings).
+    pub hide_maximized: bool,
     pub follow_mouse: bool,
     windows: Vec<IslandWindow>,
     local: Vec<UiInput>,
@@ -303,6 +305,7 @@ impl MultiMonitorOverlay {
             all_monitors,
             main_monitor,
             over_fullscreen: false,
+            hide_maximized: false,
             follow_mouse: false,
             windows: Vec::new(),
             local: Vec::new(),
@@ -1016,11 +1019,12 @@ mod win {
             Ok(())
         }
 
-        /// Hides each island whose monitor has a full-screen app in front, shows it again after.
-        pub(super) fn step_aside(&mut self) {
-            let stay = self.over_fullscreen;
+        /// Hides each island whose monitor has a full-screen app in front (or, with `hide_maximized`, a
+        /// maximized window), shows it again after.
+        pub fn step_aside(&mut self) {
+            let (stay, maximized) = (self.over_fullscreen, self.hide_maximized);
             for w in &mut self.windows {
-                let hide = !stay && unsafe { full_screen_on(&w.place) };
+                let hide = (!stay && unsafe { full_screen_on(&w.place) }) || (maximized && unsafe { maximized_on(&w.place) });
                 if hide != w.hidden {
                     w.hidden = hide;
                     w.glass.restore_visibility(!hide);
@@ -1205,6 +1209,20 @@ mod win {
 
     /// Mac Island & Dock's IsFullscreenAppOn: Direct3D exclusive or a presentation, as Windows reports it;
     /// else the window in front, or the one in the middle of the screen, covering this monitor.
+    /// A maximized, not minimized window of another app on this monitor.
+    unsafe fn maximized_on(place: &MonitorPlace) -> bool {
+        let mut query = HideQuery {
+            monitor: unsafe { MonitorFromPoint(POINT { x: place.left + 1, y: place.top + 1 }, MONITOR_DEFAULTTONULL) },
+            target: RECT::default(),
+            maximized: true,
+            found: false,
+        };
+        if !query.monitor.is_invalid() {
+            unsafe { let _ = EnumWindows(Some(find_hiding_window), LPARAM((&mut query as *mut HideQuery) as isize)); }
+        }
+        query.found
+    }
+
     unsafe fn full_screen_on(place: &MonitorPlace) -> bool {
         let monitor = unsafe { MonitorFromPoint(POINT { x: place.left + 1, y: place.top + 1,
                 },

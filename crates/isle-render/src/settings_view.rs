@@ -267,27 +267,16 @@ impl PillRenderer {
     fn settings_row(&mut self, row: &RowBox, view: &SettingsView, cfg: &IsleConfig) {
         let p = row.pref;
         // The name and its description.
-        let desc = match (p.desc.is_empty(), p.restart) {
-            (true, true) => isle_core::prefs::RESTART_NOTE.to_string(),
-            (false, true) => format!("{} · {}", p.desc, isle_core::prefs::RESTART_NOTE),
-            (false, false) => p.desc.to_string(),
-            (true, false) => String::new(),
-        };
+        let desc = settings::desc_lines(row, &self.text, view);
         let (cx, cy, cw, ch) = settings::control_rect(row, &self.text);
-        let name_room = if settings::listed(p.id) { row.w } else { match p.kind {
-            PrefKind::Chips | PrefKind::Monitors | PrefKind::CitySearch => row.w,
-            PrefKind::Slider { .. } => (cx - row.x - 64.).max(24.),
-            // An Info row's text lies at its right: the name and description take the rest.
-            PrefKind::Info => (row.w - self.text.width(view.info(p.id), 12., Weight::Regular) - 16.).max(80.),
-            _ => (cx - row.x - 12.).max(80.),
-        } };
-        let name = self.text.ellipsize(p.name, name_room, 13., Weight::Regular);
+        let name = self.text.ellipsize(p.name, settings::name_room(row, &self.text, view), 13., Weight::Regular);
         if desc.is_empty() {
             self.label(&name, row.x, centered_top(row.y, row.head, 13.), 13., Weight::Regular, white());
         } else {
             self.label(&name, row.x, row.y + 9., 13., Weight::Regular, white());
-            let d = self.text.ellipsize(&desc, name_room, 11.5, Weight::Regular);
-            self.label(&d, row.x, row.y + 28., 11.5, Weight::Regular, muted());
+            for (i, line) in desc.iter().enumerate() {
+                self.label(line, row.x, row.y + 28. + i as f32 * settings::DESC, 11.5, Weight::Regular, muted());
+            }
         }
         let value = (p.get)(cfg);
         let editing = view.editing.as_ref().filter(|(id, _)| *id == p.id).map(|(_, t)| t.clone());
