@@ -113,7 +113,8 @@ impl IsleApp {
             ("welcome.codex", agent(isle_ai::agents::codex::hooks_path(), isle_ai::agents::codex::hooked).into()),
             ("info.update", if self.release.status.is_empty() { "Ainda não verificado".into() } else { self.release.status.clone() }),
         ];
-        self.settings.view.update = self.release.newer.as_ref().map(|(v, _)| v.clone());
+        self.settings.view.update = self.release.newer.as_ref().map(|l| l.version.clone());
+        self.settings.view.update_installable = self.release.newer.as_ref().is_some_and(|l| l.installer.is_some());
     }
 
     fn settings_size(&self) -> (f32, f32, f32) {
@@ -653,6 +654,7 @@ impl IsleApp {
                 self.refresh_settings_view();
             }
             DownloadUpdate => self.open_update_page(),
+            InstallUpdate => self.install_update(),
             OpenLink(url) => {
                 if !cfg!(test) {
                     shell_open(url);

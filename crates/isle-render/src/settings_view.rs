@@ -49,6 +49,7 @@ pub(crate) fn tab_icon(tab: SettingsTab) -> Icon {
         SettingsTab::Downloads => Icon::Download,
         SettingsTab::Shortcuts => Icon::Keyboard,
         SettingsTab::Backup => Icon::Download,
+        SettingsTab::Updates => Icon::Restart,
         SettingsTab::About => Icon::Info,
         SettingsTab::Welcome => Icon::Smile,
     }

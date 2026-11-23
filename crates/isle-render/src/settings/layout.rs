@@ -297,9 +297,10 @@ pub fn layout(view: &SettingsView, cfg: &IsleConfig, text: &Text, w: f32, h: f32
     } else if welcome {
         prefs::WELCOME[step].1.iter().filter_map(|id| prefs::by_id(id)).filter(|p| p.id != "welcome.back" || step > 0).collect()
     } else {
-        // "Baixar" only when a newer version was found.
+        // A newer version's rows only once one was found; "Baixar e instalar" only with its installer.
         prefs::all().iter().filter(|p| p.tab == view.tab && !(view.tab == SettingsTab::Bar && p.id == strip_pref(cfg))
-            && (p.id != "action.download_update" || view.update.is_some())).collect()
+            && (p.id != "action.download_update" || view.update.is_some())
+            && (p.id != "action.install_update" || view.update_installable)).collect()
     };
     let mut groups: Vec<(String, Vec<&'static Pref>)> = Vec::new();
     for p in found {
@@ -431,7 +432,8 @@ pub fn action_label(p: &Pref) -> &'static str {
             OpenLink(url) if url == isle_core::prefs::LICENSE => "Ler a licença",
             OpenLink(_) => "Abrir site",
             CheckUpdates => "Verificar",
-            DownloadUpdate => "Baixar",
+            DownloadUpdate => "Abrir",
+            InstallUpdate => "Atualizar",
             WelcomeBack => "Voltar",
             WelcomeNext => "Próximo",
             WelcomeFinish => "Concluir",

@@ -27,17 +27,18 @@ pub enum SettingsTab {
     Downloads,
     Shortcuts,
     Backup,
+    Updates,
     About,
     /// The first run's steps (Mac Island & Dock's setup assistant): `WELCOME`.
     Welcome,
 }
 
 impl SettingsTab {
-    pub const ALL: [Self; 23] = [
+    pub const ALL: [Self; 24] = [
         Self::General, Self::Bar, Self::Look, Self::Monitors, Self::Hiding, Self::Animations,
         Self::Icons,
         Self::Ai, Self::Control, Self::Agenda, Self::Weather, Self::Media, Self::Notifications,
-        Self::Focus, Self::Tray, Self::Clipboard, Self::Shelf, Self::Usb, Self::Downloads, Self::Shortcuts, Self::Backup, Self::About, Self::Welcome,
+        Self::Focus, Self::Tray, Self::Clipboard, Self::Shelf, Self::Usb, Self::Downloads, Self::Shortcuts, Self::Backup, Self::Updates, Self::About, Self::Welcome,
     ];
     pub fn title(self) -> &'static str {
         match self {
@@ -62,6 +63,7 @@ impl SettingsTab {
             Self::Downloads => "Downloads",
             Self::Shortcuts => "Atalhos",
             Self::Backup => "Backup",
+            Self::Updates => "Atualizações",
             Self::About => "Sobre",
             Self::Welcome => "Boas-vindas",
         }
@@ -89,6 +91,7 @@ impl SettingsTab {
             Self::Downloads => "Atividade de downloads no Windows",
             Self::Shortcuts => "Teclas da Cimori",
             Self::Backup => "Guardar e restaurar as configurações",
+            Self::Updates => "Versões novas da Cimori",
             Self::About => "Versão e créditos",
             Self::Welcome => "Primeiros passos na Cimori",
         }
@@ -96,7 +99,7 @@ impl SettingsTab {
     pub fn group(self) -> &'static str {
         match self {
             Self::General | Self::Bar | Self::Look | Self::Icons | Self::Monitors | Self::Hiding | Self::Animations => "Ilha",
-            Self::Shortcuts | Self::Backup | Self::About | Self::Welcome => "Cimori",
+            Self::Shortcuts | Self::Backup | Self::Updates | Self::About | Self::Welcome => "Cimori",
             _ => "Módulos",
         }
     }
@@ -141,6 +144,7 @@ impl SettingsTab {
             Self::Downloads => "downloads",
             Self::Shortcuts => "shortcuts",
             Self::Backup => "backup",
+            Self::Updates => "updates",
             Self::About => "about",
             Self::Welcome => "welcome",
         }
@@ -168,6 +172,7 @@ pub enum ActionId {
     OpenLink(&'static str),
     CheckUpdates,
     DownloadUpdate,
+    InstallUpdate,
     WelcomeBack,
     WelcomeNext,
     WelcomeFinish,
@@ -720,10 +725,16 @@ static PREFS: &[Pref] = &[
     link!("link.issues", About, "Cimori", "Reportar um problema", "Bugs e ideias, pelas issues do GitHub", ISSUES),
     Pref { desc: "Software livre: use, estude, mude e compartilhe", words: "licença gpl", ..link!("link.license", About, "Cimori", "Licença GPL-3.0", "", LICENSE) },
     action!("action.show_welcome", About, "Cimori", "Mostrar boas-vindas de novo", "Aparência, hooks dos agentes e a ponte do Windhawk", "boas-vindas primeiros passos tutorial", ShowWelcome),
-    switch!("check_updates", About, "Atualizações", "Verificar atualizações", "Ao abrir e uma vez por dia, no GitHub; nada é instalado sozinho", "atualização versão nova github", check_updates, always),
-    info!("info.update", About, "Atualizações", "Estado"),
-    action!("action.check_updates", About, "Atualizações", "Verificar agora", "", "atualização versão", CheckUpdates),
-    action!("action.download_update", About, "Atualizações", "Nova versão", "Abre a página da versão no GitHub", "atualização baixar download", DownloadUpdate),
+    // Atualizações
+    Pref { words: "atualização versão", ..info!("info.update", Updates, "Versão", "Estado") },
+    action!("action.check_updates", Updates, "Versão", "Buscar atualizações", "Consulta o GitHub agora", "atualização versão buscar verificar", CheckUpdates),
+    action!("action.install_update", Updates, "Versão", "Baixar e instalar",
+        "Baixa o instalador da versão nova no GitHub, confere o SHA-256 e instala. A Cimori fecha e abre de novo sozinha, com as suas configurações",
+        "atualização baixar instalar atualizar", InstallUpdate),
+    action!("action.download_update", Updates, "Versão", "Novidades da versão", "Abre a página da versão no GitHub", "atualização novidades changelog", DownloadUpdate),
+    switch!("check_updates", Updates, "Automático", "Buscar atualizações sozinha",
+        "Ao abrir e uma vez por dia. Com uma versão nova, um aviso na ilha leva a esta aba; nada é instalado sem você pedir",
+        "atualização versão nova github automático aviso", check_updates, always),
     link!("link.isle", About, "Créditos", "isle", "zickrian · GPL-3.0 · base da ilha e dos agentes", "https://github.com/zickrian/isle"),
     link!("link.mac_island", About, "Créditos", "Mac Island & Dock", "caliberda · GPL-3.0 · opções e módulos", "https://island.caliberda.com.br"),
     Pref { desc: "Fluent, Ionicons, Tabler, Phosphor, Bootstrap, Iconoir, Heroicons", words: "ícones licença", ..info!("info.credits_mit", About, "Créditos", "Pacotes de ícones (MIT)") },

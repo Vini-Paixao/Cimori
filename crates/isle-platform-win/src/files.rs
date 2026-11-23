@@ -120,3 +120,25 @@ pub mod autostart {
         }
     }
 }
+
+/// SHA-256 of `bytes` as lowercase hex, by Windows' own BCrypt.
+#[cfg(windows)]
+pub fn sha256_hex(bytes: &[u8]) -> Option<String> {
+    use windows::Win32::Security::Cryptography::{BCRYPT_SHA256_ALG_HANDLE, BCryptHash};
+    let mut digest = [0u8; 32];
+    let status = unsafe { BCryptHash(BCRYPT_SHA256_ALG_HANDLE, None, bytes, &mut digest) };
+    status.is_ok().then(|| digest.iter().map(|b| format!("{b:02x}")).collect())
+}
+
+#[cfg(not(windows))]
+pub fn sha256_hex(_: &[u8]) -> Option<String> {
+    None
+}
+
+#[cfg(all(test, windows))]
+mod sha_tests {
+    #[test]
+    fn hashes_as_sha256sum_does() {
+        assert_eq!(super::sha256_hex(b"abc").as_deref(), Some("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"));
+    }
+}

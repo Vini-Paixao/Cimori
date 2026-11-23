@@ -38,8 +38,10 @@ pub struct SettingsView {
     pub just_recorded: bool,
     /// The blinking caret of the field being typed in: whether this frame draws it.
     pub caret: bool,
-    /// A newer Cimori found on GitHub (its version): Sobre shows "Baixar".
+    /// A newer Cimori found on GitHub (its version): Atualizações shows its page.
     pub update: Option<String>,
+    /// Its installer can be downloaded and installed from here ("Baixar e instalar").
+    pub update_installable: bool,
     /// The welcome's step (`prefs::WELCOME`).
     pub welcome_step: usize,
 }
@@ -65,6 +67,7 @@ impl Default for SettingsView {
             just_recorded: false,
             caret: true,
             update: None,
+            update_installable: false,
             welcome_step: 0,
         }
     }

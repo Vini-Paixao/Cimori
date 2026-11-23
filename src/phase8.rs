@@ -124,7 +124,7 @@ impl IsleApp {
             self.phase8.usb_running = false;
             self.phase8.usb_again = false;
             self.state.phase8.usb.clear();
-            self.alerts.retain(|(_, _, tab)| *tab != Some(TabPage::Usb));
+            self.alerts.retain(|(_, _, tab)| *tab != Some(super::Opens::Tab(TabPage::Usb)));
         }
         if m.downloads && self.phase8.downloads.is_none() {
             if let Some(services) = self.services.clone() {
