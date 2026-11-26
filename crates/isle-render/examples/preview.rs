@@ -741,6 +741,24 @@ fn phase9_shots(dir: &str, scale: f32, base: &IslandState, cfg: &IsleConfig) {
     save_shot(dir, scale, "compact-clock-center", &centered, &settled(isle_render::pages::compact_tray_width(&centered), 34.0, 17.0), cfg);
     centered.bar = vec![isle_core::config::BarItem::Clock];
     save_shot(dir, scale, "compact-clock-alone", &centered, &settled(isle_render::pages::compact_tray_width(&centered), 34.0, 17.0), cfg);
+    // A full notch, the clock first in the list: side by side, then with the clock in the middle.
+    {
+        use isle_core::config::BarItem as B;
+        let mut full = closed.clone();
+        full.weather = isle_core::weather::Weather::from_open_meteo("Rio", include_str!("open-meteo-sample.json")).ok();
+        full.media = Some(isle_core::state::MediaInfo { title: "Ao Vivo - Serie A - 26/11/2026 | Multicanais".into(), playing: true, ..Default::default() });
+        full.ui.media_controls = true;
+        for (name, bar) in [("full", vec![B::Clock, B::Weather, B::Date, B::Media]), ("tray-first", vec![B::Tray, B::Clock, B::Weather, B::Date, B::Media])] {
+            for center in [false, true] {
+                full.bar = bar.clone();
+                full.ui.clock_center = center;
+                let mut c = notch.clone();
+                c.ui.clock_center = center;
+                let w = isle_render::pages::compact_tray_width(&full);
+                save_shot(dir, scale, &format!("notch-{name}-{}", if center { "center" } else { "free" }), &full, &settled(w, 34.0, r), &c);
+            }
+        }
+    }
     let mut center_cfg = cfg.clone();
     center_cfg.ui.clock_center = true;
     center_cfg.bar_items = vec![isle_core::config::BarItem::Date, isle_core::config::BarItem::Clock, isle_core::config::BarItem::Weather];

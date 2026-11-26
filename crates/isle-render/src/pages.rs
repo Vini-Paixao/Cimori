@@ -133,23 +133,11 @@ pub fn compact_marquee_needed(state: &IslandState, width: f32) -> bool {
     })
 }
 
-/// The closed pill's width: room for the clock and the next event, plus what the other items need.
+/// The closed pill's width: what its items ask for (`layout::compact_content_width`), at least "Largura
+/// mínima da ilha fechada".
 pub fn compact_tray_width(state: &IslandState) -> f32 {
-    use isle_core::config::BarItem;
-    let in_bar = state.bar.contains(&BarItem::Media);
-    let media = (in_bar || state.ui.media_always) && crate::layout::compact_media_text(state).is_some();
-    let controls = if media { compact_media_keys(state).len() as f32 * 23. } else { 0. };
-    let extra_media = if media && !in_bar { state.ui.media_title_width as f32 } else { 0. };
-    (state.ui.pill_width as f32 + controls + extra_media + state.bar.iter().map(|item| match item {
-        BarItem::Tray if state.modules.tray => inline_indices(&state.tray).len() as f32 * 26.0 + 28.0,
-        BarItem::Weather if state.modules.weather && state.weather.is_some() => WEATHER_W,
-        BarItem::Notifications if state.notifications.unread_count() > 0 => crate::layout::BELL_W + 8.0,
-        BarItem::Timer if state.timer_text.is_some() => 88.0,
-        BarItem::Power => POWER_W + 8.0,
-        BarItem::Date if state.bar.contains(&BarItem::Next) => 88.0,
-        BarItem::Media if crate::layout::compact_media_text(state).is_some() => state.ui.media_title_width as f32,
-        _ => 0.0,
-    }).sum::<f32>()).min(crate::window::CANVAS_MAX_WIDTH as f32 - 8.)
+    let content = BAR_TEXT.with(|text| crate::layout::compact_content_width(text, state));
+    content.max(state.ui.pill_width as f32).min(crate::window::CANVAS_MAX_WIDTH as f32 - 8.)
 }
 
 /// What the Timer tab's controls do (start/pause and reset act on the mode shown).

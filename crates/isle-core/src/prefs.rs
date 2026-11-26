@@ -474,7 +474,7 @@ static PREFS: &[Pref] = &[
         },
         enabled: always, restart: false },
     // Port of IslandPref::ClockCenter (mac-island 3.1.1).
-    switch!("ui.clock_center", Bar, "Itens", "Relógio no meio", "Itens antes dele à esquerda, depois à direita", "relógio centro meio centralizar alinhar", ui.clock_center, always),
+    switch!("ui.clock_center", Bar, "Itens", "Relógio no meio", "Os outros itens se reorganizam dos dois lados dele, na ordem da lista", "relógio centro meio centralizar alinhar", ui.clock_center, always),
     switch!("bar_quota_strip", Bar, "Itens", "Barras de cota da IA", "Embaixo da pílula", "uso ia claude codex limite", bar_quota_strip, always),
     Pref { id: "clock_24h", tab: SettingsTab::Bar, card: "Relógio", name: "Formato", desc: "", words: "relógio hora am pm",
         kind: PrefKind::Choice(&["24 h", "12 h"]),
@@ -758,7 +758,7 @@ static PREFS: &[Pref] = &[
             c.ui.pill_style = if i == 1 { crate::config::PillStyle::Notch } else { crate::config::PillStyle::Island }
         },
         enabled: always, restart: false },
-    slider!("ui.pill_width", Look, "Tamanho", "Largura da ilha fechada", "Antes do espaço dos outros itens", "pílula entalhe largura",
+    slider!("ui.pill_width", Look, "Tamanho", "Largura mínima da ilha fechada", "Ela cresce com os itens da barra", "pílula entalhe largura",
         160.0..560.0 step 10.0 "px", ui.pill_width / 1 as u32, always),
     Pref { id: "notch_items", tab: SettingsTab::Bar, card: "Itens", name: "No entalhe",
         desc: "O que o entalhe fechado mostra; arraste para mudar a ordem", words: "entalhe notch itens relógio",

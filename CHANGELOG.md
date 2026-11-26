@@ -13,7 +13,17 @@ Todas as mudanças relevantes da Cimori. Versões no formato [SemVer](https://se
   sumida na frente de uma janela maximizada ou de um app marcado, banners e pedidos de permissão
   aparecem mesmo assim. Jogos e vídeos em tela cheia continuam sem.
 
+### Mudou
+- **Barra fechada refeita**: os itens ficam lado a lado, na ordem da lista, sem o vão gigante no
+  meio; a pílula tem a largura dos itens ("Largura mínima da ilha fechada" vira o mínimo).
+- **Relógio no meio** como no mac-island: o relógio fica no centro e os outros itens se dividem dos
+  dois lados dele, na ordem da lista, onde os dois lados ficam mais parecidos. Antes, com o relógio
+  primeiro na lista, ficava tudo de um lado e a música sumia.
+- A barra não muda de largura a cada minuto/segundo que o relógio vira.
+
 ### Corrigido
+- O card "Na barra" editava a lista do outro estilo (barra × entalhe) e não mudava nada na pílula;
+  agora a ordem é editada só na prévia, que é a lista em uso.
 - Foco e Pausa do Pomodoro e o Tempo padrão do Timer, mudados nas configurações, só valiam depois de
   reiniciar a Cimori; agora valem na hora. Os sliders vão até onde os botões da ilha vão (180 e 60 min).
 - Os switches **Claude Code** e **Codex** (IA › Agentes) não faziam nada sozinhos: desligar um deles

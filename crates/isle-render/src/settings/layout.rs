@@ -294,12 +294,13 @@ pub fn layout(view: &SettingsView, cfg: &IsleConfig, text: &Text, w: f32, h: f32
     let step = view.welcome_step.min(prefs::WELCOME.len() - 1);
     let welcome = !searching && view.tab == SettingsTab::Welcome;
     let found: Vec<&'static Pref> = if searching {
-        prefs::search(&view.search)
+        prefs::search(&view.search).into_iter().filter(|p| !matches!(p.id, "bar_items" | "notch_items") || p.id == strip_pref(cfg)).collect()
     } else if welcome {
         prefs::WELCOME[step].1.iter().filter_map(|id| prefs::by_id(id)).filter(|p| p.id != "welcome.back" || step > 0).collect()
     } else {
         // A newer version's rows only once one was found; "Baixar e instalar" only with its installer.
-        prefs::all().iter().filter(|p| p.tab == view.tab && !(view.tab == SettingsTab::Bar && p.id == strip_pref(cfg))
+        // The bar's items are edited in the preview; the other style's list is not shown at all.
+        prefs::all().iter().filter(|p| p.tab == view.tab && !matches!(p.id, "bar_items" | "notch_items")
             && (p.id != "action.download_update" || view.update.is_some())
             && (p.id != "action.install_update" || view.update_installable)).collect()
     };

@@ -19,17 +19,36 @@ fn items(slots: &[(BarItem, f32, f32)]) -> Vec<BarItem> {
     slots.iter().map(|s| s.0).collect()
 }
 
+/// Side by side, `BAR_GAP` (8 px) apart, the group in the middle of the pill: no hole between them.
+fn assert_packed(slots: &[(BarItem, f32, f32)]) {
+    for pair in slots.windows(2) {
+        let gap = pair[1].1 - (pair[0].1 + pair[0].2);
+        assert!((gap - 8.0).abs() < 0.5, "{pair:?}: {gap} px apart");
+    }
+}
+
 #[test]
-fn default_order_draws_like_today() {
+fn items_sit_side_by_side_in_the_middle_of_the_pill() {
     let s = state();
     let slots = compact_slots(&Text::new(), 100., 400., &s);
     assert_eq!(items(&slots), [BarItem::Clock, BarItem::Next, BarItem::Weather, BarItem::Tray]);
-    assert_eq!(slots[0].1, 116.0, "the clock sits 16 px in");
-    let tray = slots.last().unwrap();
-    assert!((tray.1 + tray.2 - 488.0).abs() < 0.5, "the tray ends 12 px before the right edge");
-    for pair in slots.windows(2) {
-        assert!(pair[0].1 + pair[0].2 <= pair[1].1 + 0.5, "{pair:?} overlap");
-    }
+    assert_packed(&slots);
+    let (first, last) = (slots[0], *slots.last().unwrap());
+    let (left, right) = (first.1 - 100., 500. - (last.1 + last.2));
+    assert!((left - right).abs() < 0.5, "as much room on both ends: {left} {right}");
+}
+
+#[test]
+fn the_pill_is_as_wide_as_its_items_at_least_the_chosen_width() {
+    let mut s = state();
+    s.ui.pill_width = 160;
+    s.bar = vec![BarItem::Clock, BarItem::Weather, BarItem::Date, BarItem::Media];
+    let w = isle_render::pages::compact_tray_width(&s);
+    let slots = compact_slots(&Text::new(), 0., w, &s);
+    assert_eq!(items(&slots), [BarItem::Clock, BarItem::Weather, BarItem::Date, BarItem::Media], "nothing dropped");
+    assert!((slots[0].1 - 14.).abs() < 0.5 && (w - 14. - (slots[3].1 + slots[3].2)).abs() < 0.5, "14 px from each edge");
+    s.ui.pill_width = 560;
+    assert_eq!(isle_render::pages::compact_tray_width(&s), 560., "never under the chosen width");
 }
 
 #[test]
@@ -56,7 +75,7 @@ fn order_follows_the_list_and_empty_items_take_no_room() {
     s.bar = vec![BarItem::Weather, BarItem::Clock, BarItem::Notifications];
     let slots = compact_slots(&Text::new(), 0., 400., &s);
     assert_eq!(items(&slots), [BarItem::Weather, BarItem::Clock], "no unread notification: no bell");
-    assert_eq!(slots[0].1, 16.0);
+    assert_packed(&slots);
 }
 
 #[test]
@@ -102,21 +121,57 @@ fn the_bell_opens_the_notifications() {
     )));
 }
 
+fn clock_middle(slots: &[(BarItem, f32, f32)]) -> f32 {
+    let c = slots.iter().find(|s| s.0 == BarItem::Clock).unwrap();
+    c.1 + c.2 / 2.
+}
+
 #[test]
-fn the_clock_in_the_middle_keeps_its_sides_by_the_list() {
+fn the_clock_in_the_middle_with_the_others_on_its_two_sides() {
     let mut s = state();
     s.ui.clock_center = true;
     s.bar = vec![BarItem::Clock];
     let slots = compact_slots(&Text::new(), 100., 400., &s);
-    assert_eq!(items(&slots), [BarItem::Clock]);
-    assert!((slots[0].1 + slots[0].2 / 2. - 300.).abs() < 0.5, "the clock alone in the middle");
+    assert!((clock_middle(&slots) - 300.).abs() < 0.5, "the clock alone in the middle");
+    // First in the list, the clock still goes in the middle: the others share its sides, in order.
+    s.bar = vec![BarItem::Clock, BarItem::Weather, BarItem::Date, BarItem::Media];
+    let w = isle_render::pages::compact_tray_width(&s);
+    let slots = compact_slots(&Text::new(), 0., w, &s);
+    assert_eq!(slots.len(), 4, "nothing dropped: {slots:?}");
+    assert!((clock_middle(&slots) - w / 2.).abs() < 0.5, "the clock in the middle of the pill");
+    let left: Vec<_> = slots.iter().filter(|i| i.1 < clock_middle(&slots) && i.0 != BarItem::Clock).map(|i| i.0).collect();
+    assert!(!left.is_empty() && left.len() < 3, "items on both sides: {slots:?}");
+    let order: Vec<_> = slots.iter().map(|i| i.0).filter(|i| *i != BarItem::Clock).collect();
+    assert_eq!(order, [BarItem::Weather, BarItem::Date, BarItem::Media], "the others keep their order");
+    let others: Vec<_> = slots.iter().copied().filter(|i| i.0 != BarItem::Clock).collect();
+    assert_packed(&others[..left.len()]);
+    assert_packed(&others[left.len()..]);
+    let clock = slots.iter().find(|i| i.0 == BarItem::Clock).unwrap();
+    let before = slots.iter().filter(|i| i.1 < clock.1).last().unwrap();
+    assert!((clock.1 - (before.1 + before.2) - 14.).abs() < 0.5, "more room on the clock's sides");
+}
+
+#[test]
+fn the_clock_keeps_its_place_in_the_list_while_the_sides_are_nearly_even() {
+    let mut s = state();
+    s.ui.clock_center = true;
     s.bar = vec![BarItem::Date, BarItem::Clock, BarItem::Weather];
-    let slots = compact_slots(&Text::new(), 100., 400., &s);
+    let w = isle_render::pages::compact_tray_width(&s);
+    let slots = compact_slots(&Text::new(), 0., w, &s);
     assert_eq!(items(&slots), [BarItem::Date, BarItem::Clock, BarItem::Weather]);
-    assert_eq!(slots[0].1, 116.0, "the date 16 px in");
-    assert!((slots[1].1 + slots[1].2 / 2. - 300.).abs() < 0.5, "the clock in the middle");
-    assert!((slots[2].1 + slots[2].2 - 488.0).abs() < 0.5, "the weather 12 px before the right edge");
+    assert!((clock_middle(&slots) - w / 2.).abs() < 0.5);
     s.ui.clock_center = false;
-    let off = compact_slots(&Text::new(), 100., 400., &s);
-    assert!((off[1].1 + off[1].2 / 2. - 300.).abs() > 4., "off: the clock goes right with the rest");
+    let w = isle_render::pages::compact_tray_width(&s);
+    let off = compact_slots(&Text::new(), 0., w, &s);
+    assert_eq!(items(&off), [BarItem::Date, BarItem::Clock, BarItem::Weather], "off: just the list's order");
+    assert_packed(&off);
+}
+
+#[test]
+fn a_ticking_clock_does_not_change_the_pill() {
+    let mut s = state();
+    s.clock_text = "11:11".into();
+    let a = isle_render::pages::compact_tray_width(&s);
+    s.clock_text = "20:08".into();
+    assert_eq!(a, isle_render::pages::compact_tray_width(&s));
 }
