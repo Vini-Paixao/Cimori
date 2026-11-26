@@ -119,8 +119,8 @@ pub fn chip_items(pref: &str, cfg: &IsleConfig, view: &SettingsView) -> Vec<(Str
         }
     }
     let label = |k: &str| choices.iter().find(|(c, _)| c == k).map(|(_, l)| l.clone()).unwrap_or_default();
-    // Muted apps keep one fixed order (on or off); the others list what is in first.
-    if pref == "muted_apps" {
+    // Toggled apps keep one fixed order (on or off); the others list what is in first.
+    if !ordered(pref) {
         return choices.iter().map(|(k, l)| (k.clone(), l.clone(), current.contains(k))).collect();
     }
     let mut out: Vec<_> = current.iter().map(|k| (k.clone(), label(k), true)).collect();
@@ -144,8 +144,9 @@ fn flow(text: &Text, items: &[(String, String, bool)], width: f32, ordered: bool
     out
 }
 
-fn ordered(pref: &str) -> bool {
-    pref != "muted_apps"
+/// Chips that are dragged into an order; the others (apps turned on or off) are only toggled.
+pub fn ordered(pref: &str) -> bool {
+    !matches!(pref, "muted_apps" | "hide_apps")
 }
 
 /// Choices too many for a segmented control, shown as a list of rows (the icon packs, the opening tab).

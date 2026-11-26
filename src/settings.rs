@@ -96,7 +96,16 @@ impl IsleApp {
             .filter(|i| !i.exe_path.is_empty())
             .map(|i| (i.exe_path.clone(), i.display_name.clone()))
             .collect();
-        self.settings.view.dynamic = vec![("muted_apps", seen), ("pinned_tray_apps", tray)];
+        // The apps with a window open now, for "hide_apps": keyed by exe name, shown by their own name.
+        #[cfg(windows)]
+        let windowed: Vec<(String, String)> = if cfg!(test) { Vec::new() } else {
+            isle_render::window::window_apps().iter()
+                .map(|path| (isle_render::window::app_key(path), isle_platform_win::tray::program_name(path)))
+                .collect()
+        };
+        #[cfg(not(windows))]
+        let windowed = Vec::new();
+        self.settings.view.dynamic = vec![("muted_apps", seen), ("pinned_tray_apps", tray), ("hide_apps", windowed)];
         let hooks = if isle_ai::agents::claude::hooked(&isle_ai::agents::claude::settings_path()) { "Instalados" } else { "Não instalados" };
         // The agents' folders (~/.claude, ~/.codex) say they are installed.
         let agent = |path: std::path::PathBuf, hooked: fn(&std::path::Path) -> bool| {

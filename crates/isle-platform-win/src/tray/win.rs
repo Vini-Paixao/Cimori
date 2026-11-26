@@ -178,7 +178,7 @@ fn expand_path(path: &str) -> String {
 }
 
 // TrayIconName/GetProgramName in the mod: FileDescription, then the executable basename.
-pub(super) fn program_name(path: &str) -> String {
+pub fn program_name(path: &str) -> String {
     let wide: Vec<_> = path.encode_utf16().chain(Some(0)).collect();
     unsafe {
         let size = GetFileVersionInfoSizeW(PCWSTR(wide.as_ptr()), None);

@@ -2,6 +2,14 @@
 
 Todas as mudanças relevantes da Cimori. Versões no formato [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+### Novo
+- **Sumir só na frente destes apps** (Esconder): marque os apps (ex.: Chrome, Edge) em que a ilha
+  atrapalha; ela some só quando um deles é a janela maximizada da frente no monitor, e continua
+  visível nos outros (VS Code, Claude...). A lista mostra os apps abertos agora. "Sumir com janela
+  maximizada" segue valendo para todos os apps.
+
 ## [1.0.1] — 2026-11-23
 
 ### Novo

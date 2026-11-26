@@ -283,6 +283,8 @@ pub struct MultiMonitorOverlay {
     pub over_fullscreen: bool,
     /// Step aside while a maximized window is on the island's monitor (settings).
     pub hide_maximized: bool,
+    /// Step aside only while the maximized window in front is one of these programs (settings).
+    pub hide_apps: Vec<String>,
     pub follow_mouse: bool,
     windows: Vec<IslandWindow>,
     local: Vec<UiInput>,
@@ -306,6 +308,7 @@ impl MultiMonitorOverlay {
             main_monitor,
             over_fullscreen: false,
             hide_maximized: false,
+            hide_apps: Vec::new(),
             follow_mouse: false,
             windows: Vec::new(),
             local: Vec::new(),
@@ -867,6 +870,7 @@ mod win {
                 target: RECT { left, top, right: left + w, bottom: top + h },
                 maximized: mode == HideWhen::Maximized,
                 found: false,
+                hwnd: HWND::default(),
             };
             unsafe { let _ = EnumWindows(Some(find_hiding_window), LPARAM((&mut query as *mut HideQuery) as isize)); }
             query.found
@@ -1020,11 +1024,13 @@ mod win {
         }
 
         /// Hides each island whose monitor has a full-screen app in front (or, with `hide_maximized`, a
-        /// maximized window), shows it again after.
+        /// maximized window; with `hide_apps`, the front maximized window of one of them), shows it again after.
         pub fn step_aside(&mut self) {
             let (stay, maximized) = (self.over_fullscreen, self.hide_maximized);
             for w in &mut self.windows {
-                let hide = (!stay && unsafe { full_screen_on(&w.place) }) || (maximized && unsafe { maximized_on(&w.place) });
+                let front = if maximized || !self.hide_apps.is_empty() { unsafe { maximized_on(&w.place) } } else { None };
+                let hide = (!stay && unsafe { full_screen_on(&w.place) })
+                    || front.is_some_and(|h| maximized || unsafe { exe_path(h) }.is_some_and(|p| listed_app(&self.hide_apps, &p)));
                 if hide != w.hidden {
                     w.hidden = hide;
                     w.glass.restore_visibility(!hide);
@@ -1144,20 +1150,48 @@ mod win {
         if cloaked != 0 {
             return true;
         }
-        let mut pid = 0;
-        unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
-        let Ok(process) = (unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }) else { return false;
-        };
-        let mut buf = [0u16; 512];
-        let mut len = buf.len() as u32;
-        let ok = unsafe { QueryFullProcessImageNameW(process, PROCESS_NAME_WIN32, PWSTR(buf.as_mut_ptr()), &mut len,
-            ) }.is_ok();
-        let _ = unsafe { CloseHandle(process) };
-        let path = String::from_utf16_lossy(&buf[..len as usize]);
+        let Some(path) = (unsafe { exe_path(hwnd) }) else { return false };
         let exe = path.rsplit('\\').next().unwrap_or_default();
-        ok && ["explorer.exe", "ShellExperienceHost.exe", "StartMenuExperienceHost.exe", "SearchHost.exe",
+        ["explorer.exe", "ShellExperienceHost.exe", "StartMenuExperienceHost.exe", "SearchHost.exe",
             "ScreenClippingHost.exe", "SnippingTool.exe",
         ].iter().any(|e| e.eq_ignore_ascii_case(exe))
+    }
+
+    /// The full path of the program that owns `hwnd`.
+    unsafe fn exe_path(hwnd: HWND) -> Option<String> {
+        let mut pid = 0;
+        unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
+        let process = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid) }.ok()?;
+        let mut buf = [0u16; 512];
+        let mut len = buf.len() as u32;
+        let ok = unsafe { QueryFullProcessImageNameW(process, PROCESS_NAME_WIN32, PWSTR(buf.as_mut_ptr()), &mut len) }.is_ok();
+        let _ = unsafe { CloseHandle(process) };
+        ok.then(|| String::from_utf16_lossy(&buf[..len as usize]))
+    }
+
+    /// The programs with a window in Alt+Tab now, other than Cimori and the shell's: their full paths, one
+    /// per exe name.
+    pub fn window_apps() -> Vec<String> {
+        unsafe extern "system" fn collect(hwnd: HWND, data: LPARAM) -> BOOL {
+            let apps = unsafe { &mut *(data.0 as *mut Vec<String>) };
+            let mut pid = 0;
+            unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)); }
+            let tool = unsafe { GetWindowLongPtrW(hwnd, GWL_EXSTYLE) } as u32 & WS_EX_TOOLWINDOW.0 != 0;
+            let owned = unsafe { GetWindow(hwnd, GW_OWNER) }.is_ok_and(|o| !o.is_invalid());
+            if pid != unsafe { windows::Win32::System::Threading::GetCurrentProcessId() }
+                && unsafe { IsWindowVisible(hwnd) }.as_bool() && !tool && !owned
+                && unsafe { GetWindowTextLengthW(hwnd) } > 0
+                && !unsafe { is_shell(hwnd) }
+                && let Some(path) = unsafe { exe_path(hwnd) }
+                && !apps.iter().any(|a| super::app_key(a) == super::app_key(&path))
+            {
+                apps.push(path);
+            }
+            true.into()
+        }
+        let mut apps = Vec::new();
+        unsafe { let _ = EnumWindows(Some(collect), LPARAM((&mut apps as *mut Vec<String>) as isize)); }
+        apps
     }
 
     unsafe fn covers(hwnd: HWND, monitor: HMONITOR, area: RECT, busy: bool) -> bool {
@@ -1178,6 +1212,8 @@ mod win {
         target: RECT,
         maximized: bool,
         found: bool,
+        /// The window found (the first, in Z-order).
+        hwnd: HWND,
     }
 
     // Adapted from Mac Island & Dock by caliberda, GPL-3.0 (WindowInTheWay).
@@ -1202,6 +1238,7 @@ mod win {
         };
         if matched && !unsafe { is_shell(hwnd) } {
             query.found = true;
+            query.hwnd = hwnd;
             return false.into();
         }
         true.into()
@@ -1209,18 +1246,19 @@ mod win {
 
     /// Mac Island & Dock's IsFullscreenAppOn: Direct3D exclusive or a presentation, as Windows reports it;
     /// else the window in front, or the one in the middle of the screen, covering this monitor.
-    /// A maximized, not minimized window of another app on this monitor.
-    unsafe fn maximized_on(place: &MonitorPlace) -> bool {
+    /// The front maximized, not minimized window of another app on this monitor.
+    unsafe fn maximized_on(place: &MonitorPlace) -> Option<HWND> {
         let mut query = HideQuery {
             monitor: unsafe { MonitorFromPoint(POINT { x: place.left + 1, y: place.top + 1 }, MONITOR_DEFAULTTONULL) },
             target: RECT::default(),
             maximized: true,
             found: false,
+            hwnd: HWND::default(),
         };
         if !query.monitor.is_invalid() {
             unsafe { let _ = EnumWindows(Some(find_hiding_window), LPARAM((&mut query as *mut HideQuery) as isize)); }
         }
-        query.found
+        query.found.then_some(query.hwnd)
     }
 
     unsafe fn full_screen_on(place: &MonitorPlace) -> bool {
@@ -1253,7 +1291,18 @@ mod win {
 }
 
 #[cfg(windows)]
-pub use win::{ask_running_to_open_settings, init_dpi, list_monitors};
+pub use win::{ask_running_to_open_settings, init_dpi, list_monitors, window_apps};
+
+/// How a program is kept in `hide_apps`: its exe file name, lowercase ("chrome.exe").
+pub fn app_key(path: &str) -> String {
+    path.rsplit(['\\', '/']).next().unwrap_or_default().to_lowercase()
+}
+
+/// Whether the program at `path` is one of `apps` (keys from `app_key`).
+pub fn listed_app(apps: &[String], path: &str) -> bool {
+    let key = app_key(path);
+    apps.iter().any(|a| a.eq_ignore_ascii_case(&key))
+}
 
 #[cfg(not(windows))]
 pub fn init_dpi() {}
@@ -1265,6 +1314,15 @@ pub fn ask_running_to_open_settings() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hide_apps_match_by_exe_name_whatever_the_folder_or_case() {
+        assert_eq!(app_key(r"C:\Program Files\Google\Chrome\Application\chrome.exe"), "chrome.exe");
+        let apps = vec!["chrome.exe".to_string(), "msedge.exe".into()];
+        assert!(listed_app(&apps, r"C:\Program Files (x86)\Microsoft\Edge\Application\MSEDGE.EXE"));
+        assert!(!listed_app(&apps, r"C:\Users\me\AppData\Local\Programs\Microsoft VS Code\Code.exe"));
+        assert!(!listed_app(&[], r"C:\chrome.exe"));
+    }
 
     #[test]
     fn full_screen_means_covering_the_monitor_like_the_mod() {

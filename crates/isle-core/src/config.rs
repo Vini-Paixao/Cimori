@@ -78,6 +78,9 @@ pub struct IsleConfig {
     /// Step aside, as for a full-screen app, while a maximized window is on the island's monitor (a browser's
     /// tabs sit where the island is).
     pub hide_maximized: bool,
+    /// Programs (exe file names, lowercase) the island steps aside for while one of them is the maximized
+    /// window in front on its monitor; the others keep it.
+    pub hide_apps: Vec<String>,
     pub modules: Modules,
     pub quota_alerts: bool,
     /// Cimori renews Claude Code's sign-in when it ran out and no Claude Code here renewed it (Claude Code
@@ -436,6 +439,7 @@ impl Default for IsleConfig {
             animations: AnimationLevel::System,
             over_fullscreen: false,
             hide_maximized: false,
+            hide_apps: Vec::new(),
             modules: Modules::default(),
             quota_alerts: true,
             claude_renew_login: false,

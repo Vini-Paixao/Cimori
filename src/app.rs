@@ -336,6 +336,7 @@ impl IsleApp {
         let mut overlay = MultiMonitorOverlay::new(config.monitors.clone(), config.all_monitors, config.main_monitor.clone(),
         ); overlay.over_fullscreen = config.over_fullscreen;
         overlay.hide_maximized = config.hide_maximized;
+        overlay.hide_apps = config.hide_apps.clone();
         overlay.follow_mouse = config.ui.follow_mouse;
         let pomodoro = Pomodoro::new(PomodoroConfig {
             focus_minutes: config.pomodoro_focus_secs / 60,
@@ -631,8 +632,9 @@ impl IsleApp {
         self.state.notification_page = self.state.notification_page.min(self.state.notifications.last_page());
         self.overlay.over_fullscreen = c.over_fullscreen;
         self.overlay.hide_maximized = c.hide_maximized;
+        self.overlay.hide_apps = c.hide_apps.clone();
         #[cfg(windows)]
-        if (old.over_fullscreen, old.hide_maximized) != (c.over_fullscreen, c.hide_maximized) {
+        if (old.over_fullscreen, old.hide_maximized, &old.hide_apps) != (c.over_fullscreen, c.hide_maximized, &c.hide_apps) {
             self.overlay.step_aside();
         }
         let monitors_changed = (&old.monitors, old.all_monitors, &old.main_monitor)
