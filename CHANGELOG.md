@@ -9,6 +9,16 @@ Todas as mudanças relevantes da Cimori. Versões no formato [SemVer](https://se
   atrapalha; ela some só quando um deles é a janela maximizada da frente no monitor, e continua
   visível nos outros (VS Code, Claude...). A lista mostra os apps abertos agora. "Sumir com janela
   maximizada" segue valendo para todos os apps.
+- **Mostrar com a ilha escondida por um app** (Avisos › Banners, ligada por padrão): com a ilha
+  sumida na frente de uma janela maximizada ou de um app marcado, banners e pedidos de permissão
+  aparecem mesmo assim. Jogos e vídeos em tela cheia continuam sem.
+
+### Corrigido
+- Foco e Pausa do Pomodoro e o Tempo padrão do Timer, mudados nas configurações, só valiam depois de
+  reiniciar a Cimori; agora valem na hora. Os sliders vão até onde os botões da ilha vão (180 e 60 min).
+- Os switches **Claude Code** e **Codex** (IA › Agentes) não faziam nada sozinhos: desligar um deles
+  agora tira as cotas dele da ilha e da aba Uso, na hora e sem reiniciar.
+- Teste novo muda cada configuração, grava o settings.json e lê de volta, para nenhuma se perder.
 
 ## [1.0.1] — 2026-11-23
 

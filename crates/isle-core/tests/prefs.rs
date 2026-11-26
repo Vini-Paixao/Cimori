@@ -92,3 +92,81 @@ fn phase8_modules_are_explicit_opt_in_and_have_live_settings() {
         assert_eq!((pref.get)(&config), PrefValue::Bool(true));
     }
 }
+
+/// A value other than `v` that the row could be given from the settings window.
+fn another(p: &prefs::Pref, v: &prefs::PrefValue) -> Option<prefs::PrefValue> {
+    use prefs::PrefValue::*;
+    Some(match (&p.kind, v) {
+        (PrefKind::Switch, Bool(b)) => Bool(!b),
+        (PrefKind::Choice(options), Index(i)) => Index((i + 1) % options.len()),
+        (PrefKind::Slider { min, max, step, .. }, Number(n)) => Number(if (n - min).abs() > step / 2.0 { *min } else { (min + step).min(*max) }),
+        (PrefKind::Color(list), Rgb(r, g, b)) => {
+            let (r, g, b) = *list.iter().find(|c| **c != (*r, *g, *b))?;
+            Rgb(r, g, b)
+        }
+        (PrefKind::Text { .. }, Text(_)) if p.id == "hooks_token" => Text("ab".repeat(32)),
+        (PrefKind::Text { .. }, Text(t)) if p.id == "holidays_country" => Text(if t == "PT" { "US".into() } else { "PT".into() }),
+        (PrefKind::Text { .. }, Text(t)) => Text(if t == "12345" { "6789".into() } else { "12345".into() }),
+        (PrefKind::Chips, List(l)) => {
+            let choices = prefs::chip_choices(p.id);
+            if choices.is_empty() {
+                List(vec!["teste.exe".into()])
+            } else if l.len() > 1 {
+                List(l.iter().rev().cloned().collect())
+            } else {
+                List(choices.iter().map(|(k, _)| k.to_string()).filter(|k| !l.contains(k)).take(2).chain(l.clone()).collect())
+            }
+        }
+        (PrefKind::Monitors, List(_)) => List(vec![r"\.\DISPLAY2".into()]),
+        (PrefKind::Monitors, Text(_)) => Text(r"\.\DISPLAY2".into()),
+        (PrefKind::Shortcut, Index(i)) => {
+            use isle_core::shortcut::{code, ALT, CTRL};
+            let (a, b) = (code(CTRL | ALT, b'K'), code(CTRL | ALT, b'L'));
+            Index(if *i == a as usize { b } else { a } as usize)
+        }
+        (PrefKind::CitySearch, List(_)) => List(vec!["Recife, Pernambuco".into(), "-8.05".into(), "-34.9".into()]),
+        (PrefKind::CitySearch, Text(t)) => Text(if t == "Recife" { "Natal".into() } else { "Recife".into() }),
+        _ => return None,
+    })
+}
+
+/// Every row, changed as the settings window changes it, keeps its new value through what the app does
+/// with it: `sanitized`, settings.json written and read back.
+#[test]
+fn every_pref_keeps_a_changed_value_through_settings_json() {
+    let mut failures = Vec::new();
+    for p in prefs::all() {
+        if matches!(p.kind, PrefKind::Action(_) | PrefKind::Info) {
+            continue;
+        }
+        let mut c = IsleConfig::default();
+        let before = (p.get)(&c);
+        let Some(value) = another(p, &before) else {
+            failures.push(format!("{}: no other value for {:?}", p.id, before));
+            continue;
+        };
+        (p.set)(&mut c, value.clone());
+        let set = (p.get)(&c);
+        if set == before {
+            failures.push(format!("{}: set {value:?} left {before:?}", p.id));
+            continue;
+        }
+        let c = c.sanitized();
+        if (p.get)(&c) != set {
+            failures.push(format!("{}: sanitized turned {set:?} into {:?}", p.id, (p.get)(&c)));
+            continue;
+        }
+        let json = serde_json::to_string_pretty(&c).unwrap();
+        let (read, whole) = IsleConfig::load_checked(&json);
+        if !whole {
+            failures.push(format!("{}: settings.json with {set:?} did not read back whole", p.id));
+        }
+        if (p.get)(&read) != set {
+            failures.push(format!("{}: saved {set:?}, read back {:?}", p.id, (p.get)(&read)));
+        }
+        if read != c {
+            failures.push(format!("{}: other settings changed on the way back", p.id));
+        }
+    }
+    assert!(failures.is_empty(), "\n{}", failures.join("\n"));
+}

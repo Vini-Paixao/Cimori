@@ -285,6 +285,8 @@ pub struct MultiMonitorOverlay {
     pub hide_maximized: bool,
     /// Step aside only while the maximized window in front is one of these programs (settings).
     pub hide_apps: Vec<String>,
+    /// The main island stays on screen over a maximized window or a `hide_apps` one (a banner shows).
+    keep_main_shown: bool,
     pub follow_mouse: bool,
     windows: Vec<IslandWindow>,
     local: Vec<UiInput>,
@@ -301,6 +303,15 @@ pub struct MultiMonitorOverlay {
 }
 
 impl MultiMonitorOverlay {
+    /// While `on`, the main island is not hidden for a maximized window or a `hide_apps` one, only for
+    /// full screen: a banner or a permission request is seen over the browser.
+    pub fn keep_main_shown(&mut self, on: bool) {
+        if self.keep_main_shown != on {
+            self.keep_main_shown = on;
+            self.step_aside();
+        }
+    }
+
     pub fn new(monitors: Vec<String>, all_monitors: bool, main_monitor: Option<String>) -> Self {
         Self {
             monitors,
@@ -309,6 +320,7 @@ impl MultiMonitorOverlay {
             over_fullscreen: false,
             hide_maximized: false,
             hide_apps: Vec::new(),
+            keep_main_shown: false,
             follow_mouse: false,
             windows: Vec::new(),
             local: Vec::new(),
@@ -1027,8 +1039,9 @@ mod win {
         /// maximized window; with `hide_apps`, the front maximized window of one of them), shows it again after.
         pub fn step_aside(&mut self) {
             let (stay, maximized) = (self.over_fullscreen, self.hide_maximized);
-            for w in &mut self.windows {
-                let front = if maximized || !self.hide_apps.is_empty() { unsafe { maximized_on(&w.place) } } else { None };
+            for (i, w) in self.windows.iter_mut().enumerate() {
+                let kept = i == 0 && self.keep_main_shown;
+                let front = if !kept && (maximized || !self.hide_apps.is_empty()) { unsafe { maximized_on(&w.place) } } else { None };
                 let hide = (!stay && unsafe { full_screen_on(&w.place) })
                     || front.is_some_and(|h| maximized || unsafe { exe_path(h) }.is_some_and(|p| listed_app(&self.hide_apps, &p)));
                 if hide != w.hidden {

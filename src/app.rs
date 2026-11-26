@@ -307,6 +307,15 @@ fn quota_name(provider: isle_core::state::AiProviderKind) -> &'static str {
     }
 }
 
+/// Whether the AI agent `id` ("claude", "codex") is switched on in IA › Agentes; other providers always are.
+fn agent_on(c: &IsleConfig, id: &str) -> bool {
+    match id {
+        "claude" => c.ai_claude_enabled,
+        "codex" => c.ai_codex_enabled,
+        _ => true,
+    }
+}
+
 fn titled(provider: &str, doing: &str, project: &str) -> String {
     let name = match provider {
         "claude" => "Claude Code",
@@ -630,6 +639,21 @@ impl IsleApp {
         self.state.power = c.power;
         self.state.notifications.per_page = c.notifications_per_page as usize;
         self.state.notification_page = self.state.notification_page.min(self.state.notifications.last_page());
+        // The running Pomodoro and timer take the new lengths now (a started timer keeps its own).
+        if (old.pomodoro_focus_secs, old.pomodoro_break_secs) != (c.pomodoro_focus_secs, c.pomodoro_break_secs) {
+            self.pomodoro.set_config(PomodoroConfig {
+                focus_minutes: c.pomodoro_focus_secs / 60,
+                short_break_minutes: c.pomodoro_break_secs / 60,
+                ..self.pomodoro.config().clone()
+            });
+        }
+        if old.timer_default_secs != c.timer_default_secs {
+            self.countdown.set_duration(c.timer_default_secs as i64 * 1000);
+        }
+        // An agent switched off leaves the island now: its quota bar and its usage page.
+        if !c.ai_claude_enabled { self.state.claude_quota = isle_core::state::QuotaStatus::new(isle_core::state::AiProviderKind::ClaudeCode); }
+        if !c.ai_codex_enabled { self.state.codex_quota = isle_core::state::QuotaStatus::new(isle_core::state::AiProviderKind::Codex); }
+        self.state.usage.retain(|p| agent_on(&c, &p.id));
         self.overlay.over_fullscreen = c.over_fullscreen;
         self.overlay.hide_maximized = c.hide_maximized;
         self.overlay.hide_apps = c.hide_apps.clone();
@@ -691,13 +715,14 @@ impl IsleApp {
         if !m.agenda || agenda_source(old) != agenda_source(&c) {
             self.stop_service("agenda");
         }
-        if !ai(&c) || old.claude_renew_login != c.claude_renew_login {
+        let agents = |c: &IsleConfig| (c.ai_claude_enabled, c.ai_codex_enabled, c.claude_renew_login);
+        if !ai(&c) || agents(old) != agents(&c) {
             self.stop_service("usage");
         }
         if !m.tray && was.tray {
             self.stop_service("tray");
         }
-        if old.modules != c.modules || old.weather != c.weather || old.claude_renew_login != c.claude_renew_login || agenda_source(old) != agenda_source(&c) {
+        if old.modules != c.modules || old.weather != c.weather || agents(old) != agents(&c) || agenda_source(old) != agenda_source(&c) {
             self.start_modules();
         }
         self.keep_visible_tabs();
@@ -1499,6 +1524,12 @@ impl IsleApp {
                 used_pct,
                 reset_at_unix,
             } => {
+                let id = match provider {
+                    isle_core::state::AiProviderKind::ClaudeCode => "claude",
+                    isle_core::state::AiProviderKind::Codex => "codex",
+                    isle_core::state::AiProviderKind::OpenCodeGo => "opencode",
+                };
+                if !agent_on(&self.config, id) { return; }
                 let alerts = self.config.quota_alerts;
                 let target_quota = match provider {
                     isle_core::state::AiProviderKind::ClaudeCode => &mut self.state.claude_quota,
@@ -1590,6 +1621,7 @@ impl IsleApp {
     /// New limits read: all of them for the AI tab; each AI's fullest window drives the bar on the pill and
     /// the 80% / 95% / "de volta!" alerts.
     pub fn apply_usage(&mut self, providers: Vec<isle_core::state::UsageProvider>, now_unix: u64) {
+        let providers: Vec<_> = providers.into_iter().filter(|p| agent_on(&self.config, &p.id)).collect();
         for provider in &providers {
             let kind = match provider.id.as_str() {
                 "claude" => isle_core::state::AiProviderKind::ClaudeCode,
@@ -1614,6 +1646,8 @@ impl IsleApp {
     /// Draws every island as it is now (each its own mode and spring, the same data).
     fn present(&mut self) -> Result<()> {
         self.watch_downloads_tab();
+        let alert = matches!(self.islands[0].mode, PillMode::AlertBanner { .. } | PillMode::PermissionPrompt);
+        self.overlay.keep_main_shown(alert && self.config.ui.banner_over_apps);
         let gap = self.config.top_gap();
         for (i, island) in self.islands.iter().enumerate().take(self.overlay.window_count()) {
             self.state.mode = island.mode.clone();
@@ -3207,6 +3241,26 @@ mod control_tests {
         assert!(matches!(&app.islands[0].mode, PillMode::AlertBanner { subtitle, .. } if subtitle == "Primeiro"));
         app.on_deadlines(t + Duration::from_secs_f32(7.0));
         assert!(matches!(&app.islands[0].mode, PillMode::AlertBanner { subtitle, .. } if subtitle == "Segundo"));
+    }
+
+    #[test]
+    fn timer_lengths_and_agent_switches_from_the_settings_apply_at_once() {
+        let mut app = IsleApp::new(IsleConfig::default());
+        let old = app.config.clone();
+        app.config.pomodoro_focus_secs = 50 * 60;
+        app.config.pomodoro_break_secs = 7 * 60;
+        app.config.timer_default_secs = 9 * 60;
+        app.config.ai_codex_enabled = false;
+        app.apply_config(&old, false);
+        assert_eq!((app.pomodoro.config().focus_minutes, app.pomodoro.config().short_break_minutes), (50, 7));
+        assert_eq!(app.countdown.duration_ms, 9 * 60_000);
+        let provider = |id: &str| isle_core::state::UsageProvider { id: id.into(), ..Default::default() };
+        app.apply_usage(vec![provider("claude"), provider("codex")], 1000);
+        assert_eq!(app.state.usage.iter().map(|p| p.id.as_str()).collect::<Vec<_>>(), ["claude"]);
+        let old = app.config.clone();
+        app.config.ai_claude_enabled = false;
+        app.apply_config(&old, false);
+        assert!(app.state.usage.is_empty(), "switched off, its usage leaves at once");
     }
 
     #[test]

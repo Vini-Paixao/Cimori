@@ -223,6 +223,9 @@ pub struct PillOptions {
     #[serde(skip_serializing)]
     pub banner_height: u32,
     pub banner_when_hidden: bool,
+    /// Banners and permission requests come over a maximized window or an app the island steps aside
+    /// for (Esconder); full-screen games and videos still go without.
+    pub banner_over_apps: bool,
     pub media_controls: bool,
     pub media_always: bool,
     pub media_play_only: bool,
@@ -314,6 +317,7 @@ impl Default for PillOptions {
             banner_width: 440,
             banner_height: 64,
             banner_when_hidden: true,
+            banner_over_apps: true,
             media_controls: false,
             media_always: false,
             media_play_only: false,

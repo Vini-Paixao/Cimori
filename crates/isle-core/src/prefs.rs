@@ -539,7 +539,7 @@ static PREFS: &[Pref] = &[
         },
         enabled: |c| c.auto_hide, restart: false },
     switch!("hide_maximized", Hiding, "Sumir", "Sumir com janela maximizada",
-        "A ilha some de vez, como em jogos e vídeos em tela cheia, enquanto houver uma janela maximizada no monitor dela, como um navegador com as abas no topo. Nesse tempo, avisos e pedidos de permissão não aparecem",
+        "A ilha some de vez, como em jogos e vídeos em tela cheia, enquanto houver uma janela maximizada no monitor dela, como um navegador com as abas no topo. Os avisos seguem \"Mostrar com a ilha escondida por um app\", em Avisos",
         "esconder sumir maximizada navegador chrome abas tela cheia", hide_maximized, always),
     Pref { id: "hide_apps", tab: SettingsTab::Hiding, card: "Sumir", name: "Sumir só na frente destes apps",
         desc: "Toque num app para marcar. A ilha some quando ele é a janela maximizada da frente, como um navegador com as abas no topo; nos outros ela fica. Lista os apps abertos agora",
@@ -562,8 +562,8 @@ static PREFS: &[Pref] = &[
         enabled: always, restart: false },
     // IA
     module!("modules.ai", Ai, "Mostrar a IA", ai),
-    Pref { restart: true, ..switch!("ai_claude_enabled", Ai, "Agentes", "Claude Code", "Cotas e chat", "claude anthropic", ai_claude_enabled, on_ai) },
-    Pref { restart: true, ..switch!("ai_codex_enabled", Ai, "Agentes", "Codex", "Cotas e chat", "codex openai", ai_codex_enabled, on_ai) },
+    switch!("ai_claude_enabled", Ai, "Agentes", "Claude Code", "Cotas na ilha e na aba Uso", "claude anthropic", ai_claude_enabled, on_ai),
+    switch!("ai_codex_enabled", Ai, "Agentes", "Codex", "Cotas na ilha e na aba Uso", "codex openai", ai_codex_enabled, on_ai),
     Pref { id: "opencode_api_key", tab: SettingsTab::Ai, card: "Agentes", name: "Chave do OpenCode Go", desc: "",
         words: "opencode api chave", kind: PrefKind::Text { secret: true, placeholder: "sk-..." },
         get: |c| text_opt(&c.opencode_api_key), set: |c, v| set_opt(&mut c.opencode_api_key, v), enabled: on_ai, restart: false },
@@ -647,6 +647,9 @@ static PREFS: &[Pref] = &[
     // Avisos
     module!("modules.notifications", Notifications, "Mostrar os avisos", notifications),
     switch!("banners", Notifications, "Banners", "Avisos na pílula", "Um banner quando chega um aviso", "banner notificação", banners, on_notifications),
+    switch!("ui.banner_over_apps", Notifications, "Banners", "Mostrar com a ilha escondida por um app",
+        "Quando a ilha some na frente de uma janela maximizada ou de um app marcado em Esconder, o banner e os pedidos de permissão aparecem mesmo assim. Jogos e vídeos em tela cheia continuam sem",
+        "banner aviso escondida oculta sumir chrome maximizada", ui.banner_over_apps, on_notifications),
     slider!("banner_secs", Notifications, "Banners", "Tempo na tela", "", "banner segundos",
         2.0..30.0 step 1.0 "s", banner_secs / 1 as u32, |c| c.modules.notifications && c.banners),
     Pref { restart: true, ..switch!("notification_icons", Notifications, "Lista", "Ícones dos apps", "", "ícone app", notification_icons, on_notifications) },
@@ -672,8 +675,8 @@ static PREFS: &[Pref] = &[
     switch!("ui.banner_when_hidden", Notifications, "Banners", "Avisar com a pílula minimizada", "", "avisos minimizada", ui.banner_when_hidden, on_notifications),
     // Foco
     module!("modules.timer", Focus, "Mostrar Foco e timers", timer),
-    slider!("pomodoro_focus_secs", Focus, "Pomodoro", "Foco", "", "pomodoro foco", 5.0..90.0 step 5.0 "min", pomodoro_focus_secs / 60 as u32, on_timer),
-    slider!("pomodoro_break_secs", Focus, "Pomodoro", "Pausa", "", "pomodoro pausa", 1.0..30.0 step 1.0 "min", pomodoro_break_secs / 60 as u32, on_timer),
+    slider!("pomodoro_focus_secs", Focus, "Pomodoro", "Foco", "", "pomodoro foco", 5.0..180.0 step 5.0 "min", pomodoro_focus_secs / 60 as u32, on_timer),
+    slider!("pomodoro_break_secs", Focus, "Pomodoro", "Pausa", "", "pomodoro pausa", 1.0..60.0 step 1.0 "min", pomodoro_break_secs / 60 as u32, on_timer),
     slider!("timer_default_secs", Focus, "Timer", "Tempo padrão", "", "timer contagem", 1.0..120.0 step 1.0 "min", timer_default_secs / 60 as u32, on_timer),
     switch!("ui.timer_on_line", Focus, "Timer", "Timer na linha minimizada", "", "timer linha minimizar", ui.timer_on_line, on_timer),
     // Bandeja
