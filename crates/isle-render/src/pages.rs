@@ -181,7 +181,7 @@ pub const POWER_W: f32 = 26.0;
 /// The temperature's room on the compact bar (icon and "24°"), left of the tray icons.
 pub const WEATHER_W: f32 = 64.0;
 /// The weather panel's size, and where its seven days sit (the renderer draws them there).
-pub const WEATHER_PANEL: (f32, f32, f32) = (620.0, 470.0, 28.0);
+pub const WEATHER_PANEL: (f32, f32, f32) = crate::layout::PANEL;
 pub const WEATHER_DAYS_TOP: f32 = 164.0;
 pub const WEATHER_DAY_H: f32 = 76.0;
 

@@ -2736,7 +2736,7 @@ END:VCALENDAR");
         assert_eq!(app.state.agenda_day, days_from_civil(2026, 12, 20));
         app.apply_ui_action(UiAction::SwitchTab(TabPage::CalendarWeather));
         assert_eq!(app.state.agenda_day, today);
-        assert_eq!(app.islands[0].geom.height.target, 450.0);
+        assert_eq!(app.islands[0].geom.height.target, isle_render::layout::PANEL.1);
     }
 
     #[test]
@@ -3307,12 +3307,14 @@ mod control_tests {
         assert_eq!(app.state.weather_day, 2);
     }
     #[test]
-    fn panels_use_the_cimori_sizes_for_each_view() {
+    fn every_tab_opens_the_island_at_one_size() {
         let mut app = IsleApp::new(IsleConfig::default());
-        app.apply_ui_action(UiAction::SwitchTab(TabPage::ControlCenter));
-        assert_eq!(app.islands[0].geom.height.target, 470.0);
-        app.apply_ui_action(UiAction::SwitchTab(TabPage::Media));
-        assert_eq!(app.islands[0].geom.height.target, 380.0);
+        let mut sizes = Vec::new();
+        for tab in [TabPage::ControlCenter, TabPage::Weather, TabPage::Media, TabPage::Tray, TabPage::Notifications] {
+            app.apply_ui_action(UiAction::SwitchTab(tab));
+            sizes.push((tab, app.islands[0].geom.width.target, app.islands[0].geom.height.target));
+        }
+        assert!(sizes.iter().all(|s| (s.1, s.2) == (sizes[0].1, sizes[0].2)), "{sizes:?}");
     }
     #[test]
     fn volume_keys_show_main_osd_but_keep_panels_and_permission_cards() {
@@ -3430,7 +3432,7 @@ mod notification_tests {
         app.apply_ui_action(UiAction::ReadNotification(2,2000));
         assert_eq!(app.state.notifications.unread_count(),4);
         app.apply_ui_action(UiAction::SwitchTab(TabPage::Notifications));
-        assert_eq!(app.islands[0].geom.height.target, 450.0);
+        assert_eq!(app.islands[0].geom.height.target, isle_render::layout::PANEL.1);
         app.apply_ui_action(UiAction::NotificationsPage(usize::MAX));
         assert_eq!(app.state.notification_page,1);
         app.apply_ui_action(UiAction::ClearNotifications);

@@ -173,7 +173,7 @@ mod tests {
         app.apply_ui_action(UiAction::SwitchTab(TabPage::AiHub));
         app.apply_ui_action(UiAction::AiOpen);
         assert!(app.state.chat.open);
-        assert_eq!(app.islands[0].geom.height.target, 450.0);
+        assert_eq!(app.islands[0].geom.height.target, isle_render::layout::PANEL.1);
         for ch in "ação 😀!\u{8}".chars() {
             app.apply_input(UiInput::Char { window: 0, ch }).unwrap();
         }
@@ -184,7 +184,7 @@ mod tests {
         assert_eq!(app.state.chat.input.text, "ação 😀");
         app.apply_ui_action(UiAction::SwitchTab(TabPage::AiHub));
         app.apply_ui_action(UiAction::AiBack);
-        assert_eq!(app.islands[0].geom.height.target, 450.0);
+        assert_eq!(app.islands[0].geom.height.target, isle_render::layout::PANEL.1);
     }
     #[test]
     fn missing_worker_is_visible_and_escape_preserves_draft() {

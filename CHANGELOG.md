@@ -20,6 +20,8 @@ Todas as mudanças relevantes da Cimori. Versões no formato [SemVer](https://se
   dois lados dele, na ordem da lista, onde os dois lados ficam mais parecidos. Antes, com o relógio
   primeiro na lista, ficava tudo de um lado e a música sumia.
 - A barra não muda de largura a cada minuto/segundo que o relógio vira.
+- **Todas as abas da ilha aberta têm o mesmo tamanho** (620 × 470): trocar de aba não muda mais o
+  tamanho do notch (Clima e Controle eram mais largos, Música e Bandeja mais baixas).
 
 ### Corrigido
 - O card "Na barra" editava a lista do outro estilo (barra × entalhe) e não mudava nada na pílula;

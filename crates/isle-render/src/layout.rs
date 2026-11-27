@@ -66,14 +66,14 @@ pub fn viewport_hitboxes(canvas:f32,w:f32,h:f32,top:f32,s:&IslandState)->Vec<Hit
         if b.h<=0.||b.y<top||b.y+b.h>top+h+0.1{None}else{Some(b)}
     }).collect()
 }
+/// Every tab's panel: one size, so going from tab to tab does not resize the island.
+pub const PANEL: (f32, f32, f32) = (620.0, 470.0, 28.0);
+
 pub fn expanded_size(tab: TabPage) -> (f32, f32, f32) {
     match tab {
-        TabPage::ControlCenter => (600.0, 470.0, 28.0),
-        TabPage::Weather => (620.0, 470.0, 28.0),
-        TabPage::Media => (560.0, 380.0, 28.0),
-        TabPage::Tray => (560.0, 390.0, 28.0),
-        TabPage::Power => (560.0, 250.0, 28.0),
-        _ => (560.0, 450.0, 28.0),
+        // The power menu (from its button, not a tab): as wide, shorter.
+        TabPage::Power => (PANEL.0, 250.0, PANEL.2),
+        _ => PANEL,
     }
 }
 /// The tabs whose module is on, in the navigation's order.
@@ -787,7 +787,7 @@ mod presentation_tests {
         assert!(icon.w < tile.w && icon.h < tile.h && icon.y < tile.y);
         assert_eq!(icon.w, icon.h);
         assert!(icon.contains(icon.x + icon.w / 2., icon.y + icon.h / 2.));
-        assert_eq!(action(&s, UiAction::TrayPage(1)).y, 354.0);
+        assert_eq!(action(&s, UiAction::TrayPage(1)).y, expanded_size(TabPage::Tray).1 - 36.0, "the pages stay at the bottom");
 
         s.tray_page = 1;
         let (w, h, _) = expanded_size(TabPage::Tray);

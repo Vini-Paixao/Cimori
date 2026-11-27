@@ -53,7 +53,7 @@ fn media_transport_is_below_artwork_and_play_is_prominent() {
     let mut state = IslandState::default();
     state.mode = PillMode::Expanded(TabPage::Media);
     state.media = Some(Default::default());
-    let boxes = compute_hitboxes(720.0, 560.0, 380.0, 6.0, &state);
+    let boxes = { let (w, h, _) = isle_render::layout::expanded_size(TabPage::Media); compute_hitboxes(720.0, w, h, 6.0, &state) };
     let play = boxes
         .iter()
         .find(|b| b.action == UiAction::Media(MediaKey::PlayPause))
