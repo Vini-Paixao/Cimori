@@ -1,163 +1,202 @@
-# Cimori
+<div align="center">
 
-**Uma ilha dinâmica para o Windows 11.** Uma pílula no topo da tela que mostra a música, os avisos,
-a agenda, os timers e os seus agentes de IA, e abre em painéis quando você passa o mouse ou clica.
+<img src="docs/media/cimori-social.png" alt="Cimori: your Windows, in an island. Music, notifications and AI agents at the top of your screen." width="820">
 
-Cimori é software livre (GPL-3.0), escrito em Rust, sem Electron e sem navegador embutido: leve em
-RAM e CPU. Ela nasceu da união de dois projetos livres: o [isle](https://github.com/zickrian/isle),
-de zickrian, e o [Mac Island & Dock](https://island.caliberda.com.br), mod do Windhawk de caliberda.
+**A dynamic island for Windows 11.** Your music, notifications, calendar, timers and AI agents in a pill
+at the top of the screen, which opens into panels with a click.
 
-> English summary at the end.
+[![Latest release](https://img.shields.io/github/v/release/Vini-Paixao/Cimori?label=release&color=f2966c)](https://github.com/Vini-Paixao/Cimori/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/Vini-Paixao/Cimori/total?color=f2966c)](https://github.com/Vini-Paixao/Cimori/releases)
+![Windows 11 x64](https://img.shields.io/badge/Windows%2011-x64-0078d4)
+![Rust](https://img.shields.io/badge/made%20with-Rust-b7410e)
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
 
-## Recursos
+**English** · [Português (Brasil)](README.pt-BR.md)
 
-- **Pílula ou entalhe** no topo de cada monitor, com relógio, data, contagem até o próximo evento,
-  cor de destaque, Liquid Glass e pacotes de ícones (Fluent, Lucide, Tabler, Phosphor e outros).
-- **Música**: o que toca em qualquer player do Windows, capa, controles e letras sincronizadas.
-- **Avisos do Windows** na ilha, com banners, lista por página e apps silenciados.
-- **Agenda**: calendário do Google ou do Outlook (endereço .ics), feriados e lembretes.
-- **Foco e timers**: Pomodoro, timer, cronômetro e alarmes.
-- **IA e agentes**: Claude Code e Codex avisam a ilha quando terminam ou pedem permissão (você
-  aprova ou recusa pela ilha), mostra as cotas de uso e um chat rápido.
-- **Central de controle**: volume por app, saídas de áudio, Wi-Fi, Bluetooth, botão de desligar e
-  atalhos editáveis.
-- **Clima**, **área de transferência** com histórico, **prateleira** de arquivos com envio pelo
-  celular (QR na rede local), **dispositivos USB**, **downloads** e a **bandeja** dos outros apps.
-- **Configurações** completas numa janela própria, com busca, backup e "Sobre".
-- **Atualizações**: avisa na ilha quando sai uma versão nova no GitHub (pode desligar) e, na aba
-  Atualizações, busca na hora e baixa e instala a versão nova com um clique, conferindo o SHA-256 do
-  instalador. Nada é instalado sem você pedir.
+<img src="docs/media/demo.webp" alt="A desktop with Cimori at the top: the pill showing a song opens on the music page, goes through the control center, calendar, weather, focus timer and AI usage, closes, shows a Claude Code permission request approved from the island and a message arriving" width="900">
 
-## Requisitos
+[![Download Cimori](https://img.shields.io/badge/Download%20for%20Windows-installer%20or%20portable-f2966c?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Vini-Paixao/Cimori/releases/latest)
 
-- **Windows 11** (64 bits). O Windows 10 pode funcionar, mas sem garantia.
-- Para os agentes: [Claude Code](https://claude.com/claude-code) e/ou Codex instalados.
-- Opcional: [Windhawk](https://windhawk.net), para a ponte da bandeja e do progresso dos downloads.
+</div>
 
-## Baixar e instalar
+Cimori turns the middle of the top of your screen into a black pill. Closed, it shows the time, what is
+playing, the weather or your next event. Click it (or just rest the mouse on it, if you prefer) and it
+opens with spring physics into a panel with a tab for each thing. Windows notifications, permission
+requests from Claude Code and Codex and a finished download show up in the same place instead of in a
+corner of the screen.
 
-Em [Releases](https://github.com/Vini-Paixao/Cimori/releases) há duas formas:
+It is free software (GPL-3.0), written in Rust, with no Electron and no embedded browser: light on RAM
+and CPU. It was born from two free projects, [isle](https://github.com/zickrian/isle) by zickrian and
+[Mac Island & Dock](https://windhawk.net/mods/mac-island-dock) by caliberda.
 
-- **Instalador** (`Cimori-<versão>-setup.exe`, recomendado): instala só para o seu usuário, sem pedir
-  administrador, em `%LOCALAPPDATA%\Programs\Cimori`, com atalho no menu Iniciar. Para atualizar, rode
-  o instalador da versão nova por cima; para remover, use **Configurações do Windows → Aplicativos**
-  (os hooks dos agentes saem junto; as suas configurações ficam).
-- **Portátil** (`Cimori-<versão>-win-x64.zip`): extraia numa pasta sua e abra o `Cimori.exe`.
+> The interface is in Brazilian Portuguese for now. The clips below show it as it is.
 
-Para abrir com o Windows, ligue **Configurações → Geral → Iniciar com o Windows** (as boas-vindas
-perguntam). O `SHA256SUMS.txt` da release confere os arquivos baixados.
+## Contents
 
-O Windows SmartScreen pode avisar na primeira vez, porque o executável não é assinado: clique em
-"Mais informações" e "Executar assim mesmo".
+- [What it does](#what-it-does)
+- [Download and install](#download-and-install)
+- [Usage](#usage)
+- [AI agents (hooks)](#ai-agents-hooks)
+- [Windhawk bridge (optional)](#windhawk-bridge-optional)
+- [Privacy](#privacy)
+- [Development](#development)
+- [Credits and licenses](#credits-and-licenses)
 
-As configurações ficam em `%APPDATA%\Cimori\settings.json` (com o registro `Cimori.log` ao lado).
+## What it does
 
-## Primeira abertura
+<table>
+<tr>
+<td width="44%"><b>Music.</b> Whatever any Windows player is playing (Spotify, the browser, any app that uses the media controls), with cover art, controls, a progress bar and synced lyrics. The closed pill shows the song, and the bars at the top of the panel move while it plays.</td>
+<td width="56%"><img src="docs/media/music.webp" alt="The pill with a song opens on the music page: cover, title, progress, controls and the lyrics" width="100%"></td>
+</tr>
+<tr>
+<td width="44%"><b>Control center.</b> Wi-Fi, Bluetooth and shortcuts such as Do Not Disturb, Night light and Project; the volume (the mouse wheel on the pill changes it too), the microphone, the audio output and each app's volume. Edit the shortcuts as on an iPhone.</td>
+<td width="56%"><img src="docs/media/control.webp" alt="The control center: Wi-Fi, Bluetooth, shortcuts, the volume being dragged and each app's volume" width="100%"></td>
+</tr>
+<tr>
+<td width="44%"><b>Calendar.</b> The month and the day's events from Google or Outlook (through the .ics address), with holidays and reminders. The pill can count down to your next event.</td>
+<td width="56%"><img src="docs/media/agenda.webp" alt="The calendar: today in large type, the month and the events of today and the next days" width="100%"></td>
+</tr>
+<tr>
+<td width="44%"><b>Weather.</b> Now, hour by hour and the next days, from Open-Meteo, for your city.</td>
+<td width="56%"><img src="docs/media/weather.webp" alt="The weather: the temperature now, the details, the week and the curve of the next hours" width="100%"></td>
+</tr>
+<tr>
+<td width="44%"><b>Focus.</b> Pomodoro, timer, stopwatch and reminders. The time left shows on the closed pill.</td>
+<td width="56%"><img src="docs/media/timer.webp" alt="A running Pomodoro, with its ring and the time left" width="100%"></td>
+</tr>
+<tr>
+<td width="44%"><b>AI: usage and assistant.</b> How much of Claude and Codex you have used (the 5-hour session and the week) and when it resets, also as rings at the top of the panel. The mascot opens a quick chat with Claude Code, Codex or OpenCode, which runs a command only after you click Run.</td>
+<td width="56%"><img src="docs/media/usage.webp" alt="The usage page: Claude's and Codex's quotas, with their bars and when they reset" width="100%"></td>
+</tr>
+<tr>
+<td width="44%"><b>Agents on the island.</b> When Claude Code or Codex asks for permission, the island grows into a card with the command and you answer right there: Allow, Always or Deny. When they finish, a banner drops out of the pill.</td>
+<td width="56%"><img src="docs/media/agents.webp" alt="A Claude Code permission request for cargo test, approved with Allow, and then the banner saying it finished" width="100%"></td>
+</tr>
+<tr>
+<td width="44%"><b>Windows notifications.</b> They drop out of the pill as banners (you can reply to messages right there), and the bell keeps the list, page by page, with muted apps.</td>
+<td width="56%"><img src="docs/media/notifications.webp" alt="A message arriving as a banner that drops out of the pill" width="100%"></td>
+</tr>
+</table>
 
-Na primeira vez, a janela de configurações abre nas **Boas-vindas**: um passo a passo para escolher o
-estilo e a cor, instalar os hooks dos agentes com um clique e configurar a ponte do Windhawk. Dá para
-rever tudo depois em **Configurações → Sobre → Mostrar boas-vindas de novo**.
+**And also:** clipboard history; a file shelf that takes files from your phone over the local network
+(QR code); USB drives; downloads, with the pill filling up while they run; the other apps' tray icons;
+a pill or a notch, Liquid Glass, an accent color and icon packs (Fluent, Lucide, Tabler, Phosphor and
+more); an island on every monitor; stepping aside over the apps you pick and over full-screen games and
+videos; tabs in your own order; and updates from the island itself, checking the installer's SHA-256.
 
-Clique com o botão direito na ilha (ou na engrenagem do painel aberto) para abrir as configurações.
+> The clips above are drawn by Cimori's own renderer, with sample data, on a made-up desktop: none of
+> them is a capture of anyone's screen. To make them again: `.\scripts\readme-media.ps1`.
 
-## Agentes de IA (hooks)
+## Download and install
 
-Em **Configurações → IA e agentes → Instalar os hooks** (ou nas boas-vindas), a Cimori acrescenta
-seus hooks ao `~/.claude/settings.json` do Claude Code e ao `~/.codex/hooks.json` do Codex. Os
-hooks chamam o próprio `Cimori.exe`, que fala com a ilha por `127.0.0.1:47830` com um token
-compartilhado. **Remover os hooks** tira só os da Cimori. Pela linha de comando:
-`Cimori.exe --install-hooks` e `Cimori.exe --uninstall-hooks`.
+Requirements: **Windows 11**, 64-bit (Windows 10 may work, with no guarantee). For the agents,
+[Claude Code](https://claude.com/claude-code) and/or Codex installed. Optional: [Windhawk](https://windhawk.net),
+for the tray and download-progress bridge.
 
-Se você mover o `Cimori.exe` de pasta, a Cimori reaponta os hooks sozinha na próxima abertura.
+[Releases](https://github.com/Vini-Paixao/Cimori/releases/latest) has two downloads:
 
-## Ponte do Windhawk (opcional)
+- **Installer** (`Cimori-<version>-setup.exe`, recommended): installs for your user only, without
+  asking for administrator rights, in `%LOCALAPPDATA%\Programs\Cimori`, with a Start menu shortcut. To
+  update, run the new version's installer over it (or use **Configurações → Atualizações**); to remove
+  it, use **Windows Settings → Apps** (the agents' hooks go with it; your settings stay).
+- **Portable** (`Cimori-<version>-win-x64.zip`): extract it to a folder of yours and open `Cimori.exe`.
 
-O Windows só entrega os ícones da bandeja e o progresso da barra de tarefas ao próprio Explorer. A
-ponte é um mod pequeno do Windhawk que lê esses dados dentro do Explorer e os repassa à Cimori. Com
-ela, a ilha mostra e clica todos os ícones da bandeja e enche a pílula durante os downloads.
+The release's `SHA256SUMS.txt` checks the downloaded files. Windows SmartScreen may warn the first time,
+because the executable is not signed: click "More info" and "Run anyway".
 
-1. Instale o [Windhawk](https://windhawk.net).
-2. No Windhawk, clique em **Criar um novo mod**.
-3. Apague o código de exemplo e cole todo o `cimori-tray-bridge.wh.cpp` (vem no zip; nas
-   boas-vindas há o botão **Copiar código da ponte**).
-4. **Compilar o mod** e depois **Sair do modo de edição**: o mod fica ativo.
+The first time, a **welcome** guide helps you pick a style and a color, install the agents' hooks with
+one click and set up the Windhawk bridge. To start with Windows, turn on **Configurações → Geral →
+Iniciar com o Windows**. Settings live in `%APPDATA%\Cimori\settings.json` (with the `Cimori.log` log
+next to it).
 
-Detalhes técnicos em [`windhawk/README.md`](windhawk/README.md). Sem a ponte, a Cimori funciona igual.
+## Usage
 
-## Privacidade
+| Do this | To |
+|---|---|
+| Click the pill | Open the panel (or just rest the mouse on it, with **Abrir painel ao passar o mouse** on) |
+| Click a tab at the top | Switch pages |
+| Move the mouse away, or click the ↑ arrow | Close it (with **Seta fixa a ilha aberta** on, the arrow keeps the panel open until you click it again) |
+| Right-click the island, or click the gear | Open the settings |
+| Mouse wheel on the closed pill | Change the volume (or the track, if you turn that on for the song) |
+| Drag a file to the pill | Keep it on the shelf (with the Shelf module on) |
+| A keyboard shortcut of yours | Minimize and restore the island, or open the notifications (**Configurações → Atalhos**) |
 
-A Cimori não tem conta, telemetria nem servidor próprio. Ela só acessa a internet para:
+Almost everything is in the settings: which modules show and in what order, what the closed pill shows
+(and the clock in the middle), which monitors get an island and which apps it steps aside for.
 
-| O quê | Para onde | Quando |
+## AI agents (hooks)
+
+In **Configurações → IA e agentes → Instalar os hooks** (or in the welcome guide), Cimori adds its hooks
+to Claude Code's `~/.claude/settings.json` and Codex's `~/.codex/hooks.json`. The hooks call
+`Cimori.exe` itself, which talks to the island over `127.0.0.1:47830` with a shared token. **Remover os
+hooks** removes only Cimori's. From the command line: `Cimori.exe --install-hooks` and
+`Cimori.exe --uninstall-hooks`. If you move `Cimori.exe` to another folder, it points the hooks at the
+new place the next time it opens.
+
+## Windhawk bridge (optional)
+
+Windows only hands the tray icons and the taskbar's progress to Explorer itself. The bridge is a small
+Windhawk mod that reads them inside Explorer and passes them to Cimori. With it, the island shows and
+clicks every tray icon and fills the pill while files download.
+
+1. Install [Windhawk](https://windhawk.net).
+2. In Windhawk, click **Create a new mod**.
+3. Delete the sample code and paste all of `cimori-tray-bridge.wh.cpp` (it comes in the zip; the welcome
+   guide has a **Copiar código da ponte** button).
+4. **Compile Mod**, then **Exit Editing Mode**: the mod is on.
+
+Technical details in [`windhawk/README.md`](windhawk/README.md). Without the bridge, Cimori works just
+the same.
+
+## Privacy
+
+Cimori has no account, no telemetry and no server of its own. It only goes online for:
+
+| What | Where | When |
 |---|---|---|
-| Clima e busca de cidade | Open-Meteo (`api.open-meteo.com`, `geocoding-api.open-meteo.com`) | Módulo Clima ligado, a cada 30 min |
-| Letras das músicas | lrclib.net | Opção "Letras" ligada, a cada faixa nova |
-| Feriados | Nager.Date (`date.nager.at`) | Opção "Feriados" ligada |
-| Sua agenda | O endereço .ics que você colar | Módulo Agenda com endereço |
-| Pacotes de ícones | jsDelivr (`cdn.jsdelivr.net`) | Uma vez, ao escolher um pacote on-line |
-| Atualizações | GitHub (`api.github.com`) | Ao abrir e uma vez por dia; pode desligar |
-| Instalar uma versão nova | GitHub (`github.com` e o download do instalador) | Só ao clicar em "Baixar e instalar" |
-| Login do Claude | `platform.claude.com`, com o login do Claude Code | Opção "Renovar o login do Claude sozinha" ligada, quando ele vence |
-| Cotas dos agentes | `api.anthropic.com`, `chatgpt.com`, com o login que o Claude Code e o Codex já têm | Módulo IA ligado |
+| Weather and city search | Open-Meteo (`api.open-meteo.com`, `geocoding-api.open-meteo.com`) | Weather module on, every 30 min |
+| Song lyrics | lrclib.net | "Letras" on, for each new track |
+| Holidays | Nager.Date (`date.nager.at`) | "Feriados" on |
+| Your calendar | The .ics address you paste | Calendar module with an address |
+| Icon packs | jsDelivr (`cdn.jsdelivr.net`) | Once, when you pick an online pack |
+| Updates | GitHub (`api.github.com`) | On start and once a day; can be turned off |
+| Installing a new version | GitHub (`github.com` and the installer download) | Only when you click "Baixar e instalar" |
+| Claude sign-in | `platform.claude.com`, with Claude Code's sign-in | "Renovar o login do Claude sozinha" on, when it expires |
+| Agents' quotas | `api.anthropic.com`, `chatgpt.com`, with the sign-in Claude Code and Codex already have | AI module on |
 
-O chat da IA roda os programas `claude`, `codex` ou `opencode` instalados na sua máquina. O
-servidor dos hooks e o compartilhamento por QR da prateleira ficam na sua rede local.
+The AI chat runs the `claude`, `codex` or `opencode` programs installed on your computer. The hooks
+server and the shelf's QR sharing stay on your local network.
 
-## Compilar
+## Development
 
-Requer [Rust](https://rustup.rs) estável (1.88 ou mais novo) e as Build Tools do Visual Studio
-(MSVC), no Windows:
+Needs stable [Rust](https://rustup.rs) (1.88 or newer) and the Visual Studio Build Tools (MSVC), on
+Windows:
 
 ```powershell
 git clone https://github.com/Vini-Paixao/Cimori
 cd Cimori
 cargo build --release          # target\release\Cimori.exe
 cargo test --workspace
-.scripts
-.\scripts\release.ps1          # dist\: zip portátil e, com o Inno Setup 6, o instalador
+.\scripts\release.ps1          # dist\: the portable zip and, with Inno Setup 6, the installer
+.\scripts\readme-media.ps1     # docs\media\: this README's video and clips (needs ffmpeg)
 ```
 
-## Publicar uma versão
+**Releasing.** Once CI passes on `main`, GitHub Actions publishes the Windows x64 installer, the
+portable ZIP and `SHA256SUMS.txt`. The version moves up a patch from the highest published tag (from
+`1.0.2` to `1.0.3`, say). To start a new series, open **Actions → CI → Run workflow**, pick `main` and
+enter a higher version such as `2.0.0`. To rebuild a published version, check out its tag and run
+`.\scripts\release.ps1 -Version 2.0.0 -RequireInstaller` with Inno Setup 6.
 
-Depois que a CI passa na `main`, o GitHub Actions publica o instalador Windows x64, o ZIP portátil e
-`SHA256SUMS.txt`. A versão avança um patch a partir da maior tag publicada (por exemplo, de `1.0.2`
-para `1.0.3`). Para iniciar uma nova série, abra **Actions → CI → Run workflow**, selecione `main`
-e informe uma versão maior, como `2.0.0`. Os próximos merges seguem com `2.0.1`, `2.0.2` etc.
+## Credits and licenses
 
-Para recompilar uma versão publicada, faça checkout da tag e passe a versão ao script. Por exemplo,
-na tag `v2.0.0`, execute `.\scripts\release.ps1 -Version 2.0.0 -RequireInstaller` com Inno Setup 6.
-
-## Créditos e licenças
-
-- **Cimori** — Marcus Paixão, [GPL-3.0](LICENSE).
-- **[isle](https://github.com/zickrian/isle)** — zickrian, GPL-3.0: a base da ilha, dos agentes, do
-  Pomodoro e muitos módulos (`crates/isle-core` traz partes portadas sem mudança).
-- **[Mac Island & Dock](https://island.caliberda.com.br)** — caliberda, GPL-3.0: o mod do Windhawk de
-  onde vêm as opções, os módulos, o entalhe, a central de controle e a ponte.
-- **Pacotes de ícones** (baixados só ao escolher): Fluent UI System Icons (Microsoft), Ionicons,
-  Tabler, Phosphor, Bootstrap Icons, Iconoir e Heroicons (Tailwind Labs) — MIT; Lucide — ISC;
-  Material Symbols (Google) — Apache 2.0.
-- **Bibliotecas Rust**: tokio, reqwest, serde, tiny-skia, resvg, ab_glyph, windows-rs e outras, cada
-  uma com a sua licença (MIT, Apache 2.0 e semelhantes); a lista completa está no `Cargo.lock`.
-
----
-
-## English
-
-**Cimori** is a dynamic-island overlay for Windows 11, written in Rust: a pill at the top of the
-screen for media, Windows notifications, calendar, timers and AI coding agents (Claude Code and Codex
-hooks with permission prompts, usage quotas), plus a control center, weather, clipboard history, a
-file shelf, USB drives and downloads. The interface is in Brazilian Portuguese.
-
-- **Requirements:** Windows 11 x64 (Windows 10 is best-effort).
-- **Install:** from [Releases](https://github.com/Vini-Paixao/Cimori/releases), run
-  `Cimori-<version>-setup.exe` (per user, no admin) or extract the portable zip anywhere and run
-  `Cimori.exe`. A welcome flow opens on first run.
-- **Optional:** the [Windhawk](https://windhawk.net) bridge (`cimori-tray-bridge.wh.cpp`) lets the
-  island show and click every tray icon and read taskbar download progress.
-- **Privacy:** no telemetry. Network use is limited to the features listed in the table above
-  (weather, lyrics, holidays, your calendar, icon packs, a daily GitHub update check that can be
-  turned off, and the agents' quota APIs).
-- **Build:** `cargo build --release` with Rust and MSVC.
-- **License:** GPL-3.0. Based on [isle](https://github.com/zickrian/isle) by zickrian and
-  [Mac Island & Dock](https://island.caliberda.com.br) by caliberda, both GPL-3.0.
+- **Cimori**: Marcus Paixão, [GPL-3.0](LICENSE).
+- **[isle](https://github.com/zickrian/isle)**: zickrian, GPL-3.0. The base of the island, the agents,
+  the Pomodoro and many modules (`crates/isle-core` carries parts ported unchanged).
+- **[Mac Island & Dock](https://windhawk.net/mods/mac-island-dock)**: caliberda, GPL-3.0. The Windhawk
+  mod the options, modules, notch, control center and bridge come from.
+- **Icon packs** (downloaded only when picked): Fluent UI System Icons (Microsoft), Ionicons, Tabler,
+  Phosphor, Bootstrap Icons, Iconoir and Heroicons (Tailwind Labs), MIT; Lucide, ISC; Material Symbols
+  (Google), Apache 2.0.
+- **Rust libraries**: tokio, reqwest, serde, tiny-skia, resvg, ab_glyph, windows-rs and others, each
+  under its own license (MIT, Apache 2.0 and similar); the full list is in `Cargo.lock`.
