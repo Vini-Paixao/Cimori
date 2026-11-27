@@ -4,6 +4,8 @@ Todas as mudanças relevantes da Cimori. Versões no formato [SemVer](https://se
 
 ## [Não lançado]
 
+## [1.0.2] — 2026-11-27
+
 ### Novo
 - **Sumir só na frente destes apps** (Esconder): marque os apps (ex.: Chrome, Edge) em que a ilha
   atrapalha; ela some só quando um deles é a janela maximizada da frente no monitor, e continua

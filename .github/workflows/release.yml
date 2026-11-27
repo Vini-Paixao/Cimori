@@ -1,40 +1,82 @@
-name: Release
+name: Windows release
 
-# A tag like v1.0.0 builds the portable zip and the installer and opens a draft release with them;
-# it is published by hand after a look.
 on:
-  push:
-    tags: ['v*']
-
-permissions:
-  contents: write
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        default: ''
 
 jobs:
-  release:
+  publish:
     runs-on: windows-latest
+    concurrency:
+      group: cimori-windows-release
+      queue: max
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Select version
+        id: release
+        shell: pwsh
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $release = ./scripts/release-version.ps1 -Commit $env:GITHUB_SHA -RequestedVersion $env:REQUESTED_VERSION
+          "version=$($release.Version)" >> $env:GITHUB_OUTPUT
+          "latest=$($release.Latest.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          $tag = "v$($release.Version)"
+          if ($release.TagExists) {
+            $published = gh release view $tag --repo $env:GITHUB_REPOSITORY --json isDraft,url --jq 'select(.isDraft == false) | .url' 2>&1
+            if ($LASTEXITCODE -eq 0 -and $published) {
+              Write-Host "Already published: $published"
+              "published=true" >> $env:GITHUB_OUTPUT
+            } elseif ($LASTEXITCODE -ne 0 -and "$published" -ne 'release not found') {
+              throw "Could not check ${tag}: $published"
+            }
+          }
       - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
+        if: steps.release.outputs.published != 'true'
         with:
           toolchain: stable
-      - name: Tag matches Cargo.toml
+      - name: Install Inno Setup
+        if: steps.release.outputs.published != 'true'
         shell: pwsh
         run: |
-          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"' | Select-Object -First 1).Matches[0].Groups[1].Value
-          if ("v$version" -ne "${{ github.ref_name }}") { throw "tag ${{ github.ref_name }} != Cargo.toml v$version" }
-      - run: cargo test --workspace --locked
-      - name: Inno Setup
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path -LiteralPath $iscc)) {
+            $installer = Join-Path $env:RUNNER_TEMP 'innosetup-6.7.3.exe'
+            Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe' -OutFile $installer
+            $expected = '9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732'
+            if ((Get-FileHash -LiteralPath $installer).Hash -ne $expected) { throw 'Inno Setup checksum mismatch' }
+            $process = Start-Process $installer -ArgumentList '/ALLUSERS /VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -WindowStyle Hidden -Wait -PassThru
+            if ($process.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $iscc)) { throw 'Inno Setup 6 is required' }
+          }
+      - name: Build ZIP and installer
+        if: steps.release.outputs.published != 'true'
         shell: pwsh
-        run: |
-          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) { choco install innosetup -y --no-progress }
-      - name: Zip and installer
-        shell: pwsh
-        run: powershell -ExecutionPolicy Bypass -File scripts\release.ps1
-      - name: Draft release
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: ./scripts/release.ps1 -Version $env:RELEASE_VERSION -RequireInstaller
+      - name: Publish GitHub Release
+        if: steps.release.outputs.published != 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_LATEST: ${{ steps.release.outputs.latest }}
         run: |
-          $version = "${{ github.ref_name }}".TrimStart('v')
-          gh release create "${{ github.ref_name }}" --draft --title "Cimori $version" --notes-file CHANGELOG.md `
-            "dist\Cimori-$version-setup.exe" "dist\Cimori-$version-win-x64.zip" "dist\SHA256SUMS.txt"
+          $version = $env:RELEASE_VERSION
+          $notes = "Build Windows x64 do commit $env:GITHUB_SHA. Verifique os downloads com SHA256SUMS.txt."
+          $heading = [regex]::Escape("## [$version]")
+          $entry = [regex]::Match((Get-Content -Raw CHANGELOG.md), "(?ms)^$heading[^\r\n]*\r?\n(.*?)(?=^## |\z)")
+          if ($entry.Success) { $notes = $entry.Groups[1].Value.Trim() + "`n`n$notes" }
+          gh release create "v$version" --repo $env:GITHUB_REPOSITORY --target $env:GITHUB_SHA `
+            --latest=$env:RELEASE_LATEST --title "Cimori $version" --generate-notes --notes $notes `
+            "dist/Cimori-$version-setup.exe" "dist/Cimori-$version-win-x64.zip" "dist/SHA256SUMS.txt"
+          if ($LASTEXITCODE -ne 0) { throw "Release v$version failed" }
