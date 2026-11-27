@@ -12,7 +12,7 @@ impl PillRenderer{
         self.panel_contents(canvas,x,y,w,natural,active,&content);
         let rendered=std::mem::replace(&mut self.layer,parent);
         let footer=crate::layout::footer_height(s);let prefix=crate::layout::scroll_top(s);let max=natural-h;let scroll=s.panel_scroll.clamp(0.,max);
-        self.composite_region(&rendered,x,y+84.,w,prefix-84.,0.);
+        self.composite_region(&rendered,x,y+crate::layout::LINE_Y,w,prefix-crate::layout::LINE_Y,0.);
         self.composite_region(&rendered,x,y+prefix,w,(h-footer-prefix).max(0.),-scroll);
         if footer>0.{self.composite_region(&rendered,x,y+h-footer,w,footer,-max);}
         let track=(h-footer-prefix-10.).max(1.);let thumb=(track*track/(track+max)).max(18.).min(track);

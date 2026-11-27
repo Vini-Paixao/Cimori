@@ -562,6 +562,12 @@ static PREFS: &[Pref] = &[
         enabled: always, restart: false },
     // IA
     module!("modules.ai", Ai, "Mostrar a IA", ai),
+    Pref { id: "ui.header_usage", tab: SettingsTab::Ai, card: "Topo do painel", name: "Uso no topo do painel",
+        desc: "Um anel com a sessão de cada um, ao lado do mascote; clique abre a aba Uso", words: "uso cota anel claude codex topo cabeçalho",
+        kind: PrefKind::Choice(&["Claude", "Codex", "Os dois", "Nenhum"]),
+        get: |c| PrefValue::Index(c.ui.header_usage.min(3) as usize),
+        set: |c, v| if let PrefValue::Index(i) = v { c.ui.header_usage = i.min(3) as u8 },
+        enabled: on_ai, restart: false },
     switch!("ai_claude_enabled", Ai, "Agentes", "Claude Code", "Cotas na ilha e na aba Uso", "claude anthropic", ai_claude_enabled, on_ai),
     switch!("ai_codex_enabled", Ai, "Agentes", "Codex", "Cotas na ilha e na aba Uso", "codex openai", ai_codex_enabled, on_ai),
     Pref { id: "opencode_api_key", tab: SettingsTab::Ai, card: "Agentes", name: "Chave do OpenCode Go", desc: "",

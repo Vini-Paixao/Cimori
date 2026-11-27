@@ -741,6 +741,19 @@ fn phase9_shots(dir: &str, scale: f32, base: &IslandState, cfg: &IsleConfig) {
     save_shot(dir, scale, "compact-clock-center", &centered, &settled(isle_render::pages::compact_tray_width(&centered), 34.0, 17.0), cfg);
     centered.bar = vec![isle_core::config::BarItem::Clock];
     save_shot(dir, scale, "compact-clock-alone", &centered, &settled(isle_render::pages::compact_tray_width(&centered), 34.0, 17.0), cfg);
+    // The open panel's header with both usage rings (Claude 42%, Codex 71%) and a song playing.
+    {
+        let mut head = base.clone();
+        head.mode = PillMode::Expanded(TabPage::Notifications);
+        head.ui.header_usage = 2;
+        let window = |p: f64| isle_core::state::UsageWindow { label: "5 horas".into(), percent: p, resets_at_ms: 0 };
+        head.usage = vec![
+            isle_core::state::UsageProvider { id: "claude".into(), name: "Claude".into(), windows: vec![window(42.)], ..Default::default() },
+            isle_core::state::UsageProvider { id: "codex".into(), name: "Codex".into(), windows: vec![window(71.)], ..Default::default() },
+        ];
+        let (pw, ph, pr) = isle_render::layout::PANEL;
+        save_shot(dir, scale, "header-usage", &head, &settled(pw, ph, pr), cfg);
+    }
     // A full notch, the clock first in the list: side by side, then with the clock in the middle.
     {
         use isle_core::config::BarItem as B;

@@ -7,7 +7,13 @@ use isle_core::state::{IslandState, PillMode, TabPage};
 use isle_core::timers::TimerMode;
 use isle_core::tray::{TRAY_PER_PAGE, overflow_indices};
 
-pub const BODY: f32 = 94.0;
+/// The open panel's header: one row (isle's), its top and height; the line under it; the body after.
+pub const HEAD_Y: f32 = 9.0;
+pub const HEAD_H: f32 = 28.0;
+pub const LINE_Y: f32 = 46.0;
+pub const BODY: f32 = 56.0;
+/// How much higher the body is than with the header's old two rows (94).
+const HEAD_SAVED: f32 = 94.0 - BODY;
 pub const TABS: [TabPage; 12] = TabPage::NAV;
 pub fn fit_size(tab:TabPage,available_w:f32,available_h:f32)->(f32,f32,f32){let(w,h,r)=expanded_size(tab);(w.min(available_w.max(320.)),h.min(available_h.max(220.)),r)}
 pub fn natural_height(s:&IslandState,viewport:f32)->f32{if s.mode==PillMode::Expanded(TabPage::AiHub)&&s.chat.open{viewport}else if let PillMode::Expanded(t)=s.mode{content_height(t,s).max(viewport)}else{viewport}}
@@ -49,11 +55,6 @@ pub fn missing_controls(s: &IslandState) -> Vec<isle_core::state::ControlTile> {
     isle_core::state::ControlTile::CATALOG.into_iter().filter(|t| !s.control_tiles.contains(t)).collect()
 }
 
-/// The header's "Editar" / "Concluído" button on the control center.
-pub fn edit_button(left: f32, top: f32) -> HitBox {
-    // The header's left, free since the clock moved right with isle's status.
-    HitBox { x: left + 20.0, y: top + 9.0, w: 86.0, h: 28.0, action: UiAction::EditControls }
-}
 pub fn footer_height(s:&IslandState)->f32{match s.mode{PillMode::Expanded(TabPage::AiHub)=>if s.chat.open{104.}else{0.},PillMode::Expanded(TabPage::Timer)=>if s.timers.mode==TimerMode::Reminders{24.}else{64.},PillMode::Expanded(TabPage::Media)=>140.,PillMode::Expanded(TabPage::Notifications|TabPage::Tray)=>52.,PillMode::Expanded(TabPage::Clipboard|TabPage::Shelf|TabPage::Usb|TabPage::Downloads)=>68.,_=>0.}}
 pub fn scroll_top(s:&IslandState)->f32{if s.mode==PillMode::Expanded(TabPage::Timer)&&s.timers.mode==TimerMode::Reminders{BODY+140.}else{BODY}}
 pub fn viewport_hitboxes(canvas:f32,w:f32,h:f32,top:f32,s:&IslandState)->Vec<HitBox>{
@@ -67,11 +68,11 @@ pub fn viewport_hitboxes(canvas:f32,w:f32,h:f32,top:f32,s:&IslandState)->Vec<Hit
     }).collect()
 }
 /// Every tab's panel: one size, so going from tab to tab does not resize the island.
-pub const PANEL: (f32, f32, f32) = (620.0, 470.0, 28.0);
-/// Música and Bandeja were made for a shorter panel (380 and 390): their content goes this much lower,
-/// in the middle of `PANEL` (drawing and clicks alike).
-pub const MEDIA_DROP: f32 = (PANEL.1 - 380.0) / 2.0;
-pub const TRAY_DROP: f32 = (PANEL.1 - 390.0) / 2.0;
+pub const PANEL: (f32, f32, f32) = (620.0, 470.0 - HEAD_SAVED, 28.0);
+/// Música and Bandeja were made for a shorter panel (380 and 390 under the old header): their content goes
+/// this much lower, in the middle of `PANEL` (drawing and clicks alike).
+pub const MEDIA_DROP: f32 = (PANEL.1 + HEAD_SAVED - 380.0) / 2.0;
+pub const TRAY_DROP: f32 = (PANEL.1 + HEAD_SAVED - 390.0) / 2.0;
 
 pub fn expanded_size(tab: TabPage) -> (f32, f32, f32) {
     match tab {
@@ -102,17 +103,18 @@ pub fn visible_tabs(m: &isle_core::config::Modules) -> Vec<TabPage> {
 }
 
 /// Port of ExpandedView._buildTabs (isle): icons in a row from the left, 2 px apart, the open one in a pill
-/// with its name (.isle-tab: 4 px by 10, the name 13 px semibold 6 px from the icon). Narrower when they
-/// would not fit, then without the name.
-pub fn navigation(left: f32, top: f32, w: f32, m: &isle_core::config::Modules, open: Option<TabPage>) -> Vec<HitBox> {
+/// with its name (.isle-tab: 4 px by 10, the name 13 px semibold 6 px from the icon), in the header's row
+/// up to `right`. Narrower when they would not fit, then without the name.
+pub fn navigation(left: f32, top: f32, right: f32, m: &isle_core::config::Modules, open: Option<TabPage>) -> Vec<HitBox> {
     let tabs = visible_tabs(m);
     let name = open.filter(|t| tabs.contains(t)).map_or(0., |t| crate::pages::BAR_TEXT.with(|text| text.width(t.label(), 13., crate::text::Weight::Semibold)) + 6.);
     let width = |pad: f32, name: f32| tabs.len() as f32 * (16. + pad * 2. + 2.) + name;
-    let (pad, name) = [(10., name), (7., name), (7., 0.)].into_iter().find(|(p, n)| width(*p, *n) <= w - 40.).unwrap_or((7., 0.));
+    let room = right - (left + 20.);
+    let (pad, name) = [(10., name), (7., name), (7., 0.), (5., 0.), (3., 0.)].into_iter().find(|(p, n)| width(*p, *n) <= room).unwrap_or((3., 0.));
     let mut x = left + 20.;
     tabs.into_iter().map(|t| {
         let tw = 16. + pad * 2. + if Some(t) == open { name } else { 0. };
-        let hb = HitBox { x, y: top + 47., w: tw, h: 26., action: UiAction::SwitchTab(t) };
+        let hb = HitBox { x, y: top + HEAD_Y + 1., w: tw, h: HEAD_H - 2., action: UiAction::SwitchTab(t) };
         x += tw + 2.;
         hb
     }).collect()
@@ -125,14 +127,59 @@ pub fn tab_pad(nav: &[HitBox]) -> f32 {
 pub fn open_tab(s: &IslandState) -> Option<TabPage> {
     match s.mode { PillMode::Expanded(TabPage::AiHub) if s.chat.open => None, PillMode::Expanded(t) => Some(t), _ => None }
 }
-/// Port of ExpandedView._buildHeader's status (isle): the ✦ (assistant), the date, the time in bold, then the
-/// gear (Cimori's collapse arrow after it). The ✦ hit box, and where the date and the time start.
-pub fn header_status(left: f32, top: f32, w: f32, s: &IslandState) -> (Option<HitBox>, f32, f32) {
+/// The header's right side (port of ExpandedView._buildHeader's status, isle), right to left: Cimori's
+/// collapse arrow, the gear, the time in bold, the date, the usage rings, the mascot (the assistant),
+/// the music's bars while something plays, and "Editar" on the control center. The tabs take what is
+/// left of the row (`navigation` up to `start`).
+pub struct Header {
+    pub edit: Option<HitBox>,
+    pub bars: Option<HitBox>,
+    pub mascot: Option<HitBox>,
+    /// Each with the provider's id ("claude", "codex") and its session's percent.
+    pub rings: Vec<(HitBox, String, f64)>,
+    pub date_x: f32,
+    pub time_x: f32,
+    pub gear: HitBox,
+    pub collapse: HitBox,
+    /// Where the right side begins.
+    pub start: f32,
+}
+
+/// The providers whose usage ring shows ("Uso no topo do painel"): 0 Claude, 1 Codex, 2 both, 3 none.
+pub fn header_rings(s: &IslandState) -> Vec<(String, f64)> {
+    let wanted: &[&str] = match s.ui.header_usage { 0 => &["claude"], 1 => &["codex"], 2 => &["claude", "codex"], _ => &[] };
+    if !s.modules.ai { return vec![]; }
+    wanted.iter().filter_map(|id| {
+        let p = s.usage.iter().find(|p| p.id == *id)?;
+        Some((p.id.clone(), p.windows.first()?.percent))
+    }).collect()
+}
+
+pub fn header(left: f32, top: f32, w: f32, s: &IslandState) -> Header {
+    use crate::pages::UiAction as A;
+    let y = top + HEAD_Y;
+    let at = |x: f32, bw: f32, action: A| HitBox { x, y, w: bw, h: HEAD_H, action };
     crate::pages::BAR_TEXT.with(|text| {
+        let collapse = at(left + w - 50., 30., A::ToggleCollapse);
+        let gear = at(left + w - 84., 30., A::OpenSettings);
         let time_x = left + w - 92. - text.width(&s.clock_text, 13., crate::text::Weight::Semibold);
         let date_x = time_x - 8. - text.width(&s.date_text, 13., crate::text::Weight::Regular);
-        let star = s.modules.ai.then_some(HitBox { x: date_x - 38., y: top + 9., w: 28., h: 28., action: UiAction::AiOpen });
-        (star, date_x, time_x)
+        let mut x = date_x - 6.;
+        let mut rings: Vec<_> = header_rings(s).into_iter().rev().map(|(id, pct)| {
+            x -= 26.;
+            (at(x, 24., A::SwitchTab(TabPage::AiHub)), id, pct)
+        }).collect();
+        rings.reverse();
+        let mascot = s.modules.ai.then(|| { x -= 32.; at(x, 30., A::AiOpen) });
+        let playing = s.modules.media && s.media.as_ref().is_some_and(|m| m.playing);
+        let bars = playing.then(|| { x -= 28.; at(x, 24., A::SwitchTab(TabPage::Media)) });
+        let edit = (s.mode == PillMode::Expanded(TabPage::ControlCenter)).then(|| {
+            let label = if s.control_editing { "Concluído" } else { "Editar" };
+            let bw = text.width(label, 12., crate::text::Weight::Medium) + 22.;
+            x -= bw + 8.;
+            HitBox { x, y: y + 3., w: bw, h: HEAD_H - 6., action: A::EditControls }
+        });
+        Header { edit, bars, mascot, rings, date_x, time_x, gear, collapse, start: x - 8. }
     })
 }
 /// Port of UsagePage._content (isle), every provider stacked: the head (20), 14 apart, then each limit
@@ -149,8 +196,12 @@ pub fn expanded_hitboxes(canvas: f32, w: f32, h: f32, top: f32, s: &IslandState)
         return vec![];
     };
     let left = (canvas - w) * 0.5;
-    let mut boxes = navigation(left, top, w, &s.modules, open_tab(s));
-    boxes.extend(header_status(left, top, w, s).0);
+    let head = header(left, top, w, s);
+    let mut boxes = navigation(left, top, head.start, &s.modules, open_tab(s));
+    boxes.extend(head.edit.into_iter().chain(head.bars).chain(head.mascot));
+    boxes.extend(head.rings.into_iter().map(|r| r.0));
+    boxes.push(head.collapse);
+    boxes.push(head.gear);
     let mut add = |x, y, bw, bh, a| {
         boxes.push(HitBox {
             x: left + x,
@@ -160,14 +211,10 @@ pub fn expanded_hitboxes(canvas: f32, w: f32, h: f32, top: f32, s: &IslandState)
             action: a,
         })
     };
-    add(w - 50.0, 9.0, 30.0, 28.0, UiAction::ToggleCollapse);
-    add(w - 84.0, 9.0, 30.0, 28.0, UiAction::OpenSettings);
     match tab {
         TabPage::AiHub if s.chat.open => boxes.extend(crate::chat::hitboxes(left, top, w, h, &s.chat)),
         TabPage::AiHub => {}
         TabPage::ControlCenter => {
-            let e = edit_button(0.0, 0.0);
-            add(e.x, e.y, e.w, e.h, UiAction::EditControls);
             let cw = (w - 48.0) / 2.0;
             // The first two buttons are the big ones, the rest four to a row.
             for (i, t) in s.control_tiles.iter().copied().enumerate() {

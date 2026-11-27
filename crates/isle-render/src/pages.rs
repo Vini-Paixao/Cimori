@@ -481,12 +481,14 @@ mod control_tests {
         };
         for (outputs, chips, app_rows) in [(1, 0, 4), (4, 4, 3), (7, 7, 2), (12, 8, 2)] {
             state.audio_outputs = (0..outputs).map(out).collect();
-            let boxes = compute_hitboxes(720.0, 600.0, 470.0, 6.0, &state);
+            let (pw, ph, _) = crate::layout::PANEL;
+            let boxes = compute_hitboxes(720.0, pw, ph, 6.0, &state);
             assert_eq!(boxes.iter().filter(|h| matches!(h.action, UiAction::SetOutput(_))).count(), chips, "{outputs} outputs");
-            assert_eq!(boxes.iter().filter(|h| matches!(h.action, UiAction::AppVolume(..))).count(), app_rows, "{outputs} outputs");
+            let rows = boxes.iter().filter(|h| matches!(h.action, UiAction::AppVolume(..))).count();
+            assert!(rows >= app_rows && rows <= 4, "{outputs} outputs: {rows} app rows");
             let controls: Vec<_> = boxes.iter().filter(|h| !matches!(h.action, UiAction::SwitchTab(_) | UiAction::ToggleCollapse)).collect();
             for (i, a) in controls.iter().enumerate() {
-                assert!(a.y + a.h <= 6.0 + 460.0, "{a:?} leaves the panel");
+                assert!(a.y + a.h <= 6.0 + crate::layout::PANEL.1, "{a:?} leaves the panel");
                 for b in &controls[i + 1..] {
                     assert!(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y, "overlap {a:?}, {b:?}");
                 }

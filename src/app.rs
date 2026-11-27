@@ -1959,6 +1959,13 @@ impl IsleApp {
         {
             sleep = sleep.min(Duration::from_millis(if p8.bar_sliding() { 50 } else { 16 }));
         }
+        // The music's bars on the open panel's header, while something plays.
+        if isle_render::window::animations_enabled() && self.state.modules.media
+            && self.state.media.as_ref().is_some_and(|m| m.playing)
+            && self.islands.iter().any(|i| matches!(i.mode, PillMode::Expanded(_)))
+        {
+            sleep = sleep.min(Duration::from_millis(50));
+        }
         // A title scrolling on the bar: every animation frame, as mac-island 3.1.1 redraws it (25 a
         // second moved it 1.4 px at a time, visibly stepping).
         if compact_visible && isle_render::window::animations_enabled() && self.islands.iter().any(|island| {
@@ -3301,7 +3308,7 @@ mod control_tests {
         app.state.weather_day = 4;
         app.apply_ui_action(UiAction::OpenWeather);
         assert_eq!(app.islands[0].mode, PillMode::Expanded(TabPage::Weather));
-        assert_eq!((app.islands[0].geom.width.target, app.islands[0].geom.height.target), (620.0, 470.0));
+        assert_eq!((app.islands[0].geom.width.target, app.islands[0].geom.height.target), (isle_render::layout::PANEL.0, isle_render::layout::PANEL.1));
         assert_eq!(app.state.weather_day, 0);
         app.apply_ui_action(UiAction::WeatherDay(2));
         assert_eq!(app.state.weather_day, 2);

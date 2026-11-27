@@ -7,7 +7,7 @@ use crate::{
 };
 use isle_core::{chat::Chat, state::AiProviderKind};
 
-pub const TEXT_TOP: f32 = 144.0;
+pub const TEXT_TOP: f32 = crate::layout::BODY + 50.0;
 /// Port of IDEAS (isle voice.js): what to try under an empty field: the chip, the words it puts in, and
 /// whether it asks at once.
 pub const IDEAS: [(&str, &str, bool); 3] = [
@@ -32,8 +32,8 @@ pub fn hitboxes(left: f32, top: f32, w: f32, h: f32, chat: &Chat) -> Vec<HitBox>
         return vec![];
     }
     let mut boxes = vec![
-        hb(20., 94., 30., 30., UiAction::AiBack),
-        hb(w - 50., 94., 30., 30., UiAction::AiNew),
+        hb(20., crate::layout::BODY, 30., 30., UiAction::AiBack),
+        hb(w - 50., crate::layout::BODY, 30., 30., UiAction::AiNew),
     ];
     let widths = [(w-134.)/3.;3];
     let mut x = 64.;
@@ -45,7 +45,7 @@ pub fn hitboxes(left: f32, top: f32, w: f32, h: f32, chat: &Chat) -> Vec<HitBox>
     .into_iter()
     .enumerate()
     {
-        boxes.push(hb(x, 94., widths[i], 30., UiAction::AiProvider(p)));
+        boxes.push(hb(x, crate::layout::BODY, widths[i], 30., UiAction::AiProvider(p)));
         x += widths[i] + 5.;
     }
     if ideas_shown(chat) {

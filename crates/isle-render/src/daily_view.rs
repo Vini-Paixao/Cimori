@@ -547,7 +547,7 @@ impl PillRenderer {
                     (t.stopwatch_ms % 60000) as f32 / 60000.,
                 ),
             };
-            self.ring(x + w / 2., b + 130., 74., frac, accent());
+            self.ring(x + w / 2., b + 130., 74., frac, accent(), 9.);
             let size = if time.len() > 6 { 32. } else { 42. };
             self.centered_label(&time, x + w / 2., b + 99., size, Weight::Regular, white());
             self.centered_label(caption, x + w / 2., b + 151., 12., Weight::Medium, muted());

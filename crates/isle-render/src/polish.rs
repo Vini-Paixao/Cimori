@@ -175,29 +175,46 @@ impl PillRenderer {
         state: &IslandState,
         _cfg: &IsleConfig,
     ) {
-        // Port of ExpandedView._buildHeader (isle): ✦ (dimmed, lit while the assistant is open), the date,
-        // the time in bold, the gear.
-        let (star, date_x, time_x) = crate::layout::header_status(x, y, w, state);
-        if let Some(star) = star {
-            let lit = state.chat.open && active == TabPage::AiHub;
-            self.ui_icon(Icon::Spark, star.x + star.w / 2., star.y + star.h / 2., 15., if lit { white() } else { Color::from_rgba8(255, 255, 255, 153) });
-        }
-        self.label(&state.date_text, date_x, centered_top(y + 9., 28., 13.), 13., Weight::Regular, Color::from_rgba8(255, 255, 255, 230));
-        self.label(&state.clock_text, time_x, centered_top(y + 9., 28., 13.), 13., Weight::Semibold, white());
-        self.ui_icon(Icon::Up, x + w - 35., y + 23., 16., if state.arrow_pinned {accent()} else {muted()});
-        self.ui_icon(Icon::Gear, x + w - 69., y + 23., 15., muted());
-        if active == TabPage::ControlCenter {
+        // Port of ExpandedView._buildHeader (isle), one row: the tabs, then the music's bars, the mascot
+        // (the assistant, isle's ✦), the usage rings, the date, the time in bold, the gear, Cimori's arrow.
+        let head = crate::layout::header(x, y, w, state);
+        let row_y = y + crate::layout::HEAD_Y;
+        let mid = row_y + crate::layout::HEAD_H / 2.;
+        if let Some(e) = &head.edit {
             // Port of ControlPanel's Edit button (mac-island 3.1.1); "Concluído" while editing.
-            let e = crate::layout::edit_button(x, y);
             let editing = state.control_editing;
             self.round(e.x, e.y, e.w, e.h, e.h / 2., if editing { tint() } else { surface() });
             let label = if editing { "Concluído" } else { "Editar" };
             self.centered_label(label, e.x + e.w / 2., centered_top(e.y, e.h, 12.), 12., Weight::Medium, if editing { accent() } else { white() });
         }
+        if let Some(b) = &head.bars {
+            // mac-island's playing bars: four, rising and falling out of step.
+            let t = state.now_ms as f32 / 1000.;
+            for i in 0..4 {
+                let k = i as f32;
+                let level = 0.35 + 0.65 * (0.5 + 0.5 * (t * (5.1 + k * 1.7) + k * 1.9).sin()).powf(1.4);
+                let bh = 4. + 10. * if crate::window::animations_enabled() { level } else { 0.6 };
+                self.round(b.x + 4. + k * 4.5, mid + 7. - bh, 3., bh, 1.5, accent());
+            }
+        }
+        if let Some(m) = &head.mascot {
+            let mood = if state.chat.error.is_some() { Mood::Error }
+                else if state.chat.busy { Mood::Thinking } else { Mood::Ready };
+            let size = 22.;
+            self.avatar(m.x + (m.w - size) / 2., mid - size / 2., size, mood);
+        }
+        for (hb, id, pct) in &head.rings {
+            let color = if id == "codex" { Color::from_rgba8(255, 255, 255, 220) } else { accent() };
+            self.ring(hb.x + hb.w / 2., mid, 7.5, (*pct as f32 / 100.).clamp(0., 1.), color, 3.);
+        }
+        self.label(&state.date_text, head.date_x, centered_top(row_y, crate::layout::HEAD_H, 13.), 13., Weight::Regular, Color::from_rgba8(255, 255, 255, 230));
+        self.label(&state.clock_text, head.time_x, centered_top(row_y, crate::layout::HEAD_H, 13.), 13., Weight::Semibold, white());
+        self.ui_icon(Icon::Up, head.collapse.x + 15., mid, 16., if state.arrow_pinned {accent()} else {muted()});
+        self.ui_icon(Icon::Gear, head.gear.x + 15., mid, 15., muted());
         // Port of ExpandedView._syncTabs (isle): the open tab on a pill with its name, the others' icons dimmed
         // (TAB_OPACITY 255 / 140); a red dot on a page with news.
         let open = crate::layout::open_tab(state);
-        let nav = crate::layout::navigation(x, y, w, &state.modules, open);
+        let nav = crate::layout::navigation(x, y, head.start, &state.modules, open);
         let pad = crate::layout::tab_pad(&nav);
         for hb in &nav {
             let UiAction::SwitchTab(tab) = hb.action else {
@@ -206,7 +223,10 @@ impl PillRenderer {
             let on = Some(tab) == open;
             if on {
                 self.round(hb.x, hb.y, hb.w, hb.h, hb.h / 2., Color::from_rgba8(255, 255, 255, 23));
-                self.label(tab.label(), hb.x + pad + 22., centered_top(hb.y, hb.h, 13.), 13., Weight::Semibold, white());
+                // Its name only where the row left room for it (`navigation` drops it when crowded).
+                if hb.w > 16. + pad * 2. + 1. {
+                    self.label(tab.label(), hb.x + pad + 22., centered_top(hb.y, hb.h, 13.), 13., Weight::Semibold, white());
+                }
             }
             let icon = match tab {
                 TabPage::AiHub => Icon::Gauge,
@@ -229,7 +249,7 @@ impl PillRenderer {
                 self.round(cx + 5., cy - 9., 6., 6., 3., Color::from_rgba8(255, 69, 58, 255));
             }
         }
-        self.subtle_line(x + 20., y + 84., w - 40.);
+        self.subtle_line(x + 20., y + crate::layout::LINE_Y, w - 40.);
         self.panel_body(canvas,x,y,w,h,active,state);
     }
     pub(super) fn panel_contents(&mut self,canvas:f32,x:f32,y:f32,w:f32,h:f32,active:TabPage,state:&IslandState){

@@ -213,6 +213,8 @@ pub struct PillOptions {
     pub hover_open: bool,
     pub follow_mouse: bool,
     pub tooltips: bool,
+    /// The usage ring on the open panel's header: 0 Claude, 1 Codex, 2 both, 3 none.
+    pub header_usage: u8,
     pub hover_highlight: bool,
     pub uniform_panels: bool,
     // Before the units in %: still read from an older settings.json (see `migrate_units`), never written.
@@ -311,6 +313,7 @@ impl Default for PillOptions {
             hover_open: false,
             follow_mouse: false,
             tooltips: true,
+            header_usage: 0,
             hover_highlight: true,
             uniform_panels: false,
             pill_height: 34,
