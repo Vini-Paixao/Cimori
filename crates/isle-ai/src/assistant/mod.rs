@@ -40,6 +40,15 @@ pub struct Update {
     pub models: Option<(AiProviderKind, Result<Vec<ModelChoice>, String>)>,
 }
 
+/// An error as shown and logged: the OpenCode key never in it, at most 1200 characters.
+fn redact(error: String, key: Option<&str>) -> String {
+    let error = match key.filter(|k| !k.is_empty()) {
+        Some(k) => error.replace(k, "[chave]"),
+        None => error,
+    };
+    error.chars().take(1200).collect()
+}
+
 /// One answer at most this long; a command waiting for approval and running has its own limits.
 const ASK_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(180);
 
@@ -73,7 +82,7 @@ pub fn spawn(
                         let listed = tokio::time::timeout(std::time::Duration::from_secs(40), backends::models(provider, key.as_deref())).await;
                         let result = match listed {
                             Ok(Ok(models)) => Ok(models),
-                            Ok(Err(err)) => Err(format!("{err:#}")),
+                            Ok(Err(err)) => Err(redact(format!("{err:#}"), key.as_deref())),
                             Err(_) => Err("A CLI demorou para listar os modelos.".into()),
                         };
                         emit(Update { models: Some((provider, result)), ..Default::default() });
@@ -89,13 +98,7 @@ pub fn spawn(
                         let (emit, key, pending) = (emit.clone(), key.clone(), pending.clone());
                         active = Some(tokio::spawn(async move {
                             let (text, error) = converse(generation, provider, &model, items, key.as_deref(), &pending, &*emit).await;
-                            let error = error.map(|s| {
-                                let redacted = match key.as_deref().filter(|k| !k.is_empty()) {
-                                    Some(k) => s.replace(k, "[chave]"),
-                                    None => s,
-                                };
-                                redacted.chars().take(1200).collect()
-                            });
+                            let error = error.map(|s| redact(s, key.as_deref()));
                             emit(Update { generation, text, done: true, error, ..Default::default() });
                         }));
                     }
@@ -141,6 +144,12 @@ async fn converse(
         let Some(command) = reply.run.filter(|_| step < agent::MAX_STEPS) else {
             return (shown(&steps, &reply.say), None);
         };
+        // Never offered when it cannot be shown whole and plainly (the card's and Enter's rule too).
+        if !isle_core::chat::showable(&command.command) {
+            steps.push_str(&format!("✗ {} (recusado: longo demais ou com caracteres escondidos)\n", command.title));
+            talk.push(Message { user: true, text: agent::UNSHOWABLE.into() });
+            continue;
+        }
         // Executar or Negar: nothing runs without it; unanswered for long, it is denied.
         let (answer, wait) = oneshot::channel();
         *pending.lock().unwrap_or_else(PoisonError::into_inner) = Some((generation, answer));

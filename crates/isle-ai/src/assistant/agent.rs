@@ -132,6 +132,7 @@ pub fn result_message(approval: &Approval, code: Option<i32>, output: &str) -> S
     format!("[Cimori] O usuário aprovou e o comando rodou: {}\nCódigo de saída: {code}\nSaída:\n{output}", approval.command)
 }
 
+pub const UNSHOWABLE: &str = "[Cimori] Comando recusado sem mostrar ao usuário: passa de 600 caracteres ou 8 linhas, ou tem caracteres de controle ou invisíveis. Peça um comando curto e simples.";
 pub const DENIED: &str = "[Cimori] O usuário negou o comando. Não peça o mesmo de novo; responda sem ele.";
 
 #[cfg(test)]

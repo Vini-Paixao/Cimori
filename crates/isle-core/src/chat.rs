@@ -22,6 +22,22 @@ pub struct Approval {
     pub command: String,
 }
 
+/// The longest command the assistant may run: the card shows it whole (see `showable`).
+pub const COMMAND_MAX_CHARS: usize = 600;
+pub const COMMAND_MAX_LINES: usize = 8;
+
+/// Whether `command` can be shown whole and plainly, and so be run: not too long, and no control,
+/// zero-width or direction-changing characters that would hide part of it on the card.
+pub fn showable(command: &str) -> bool {
+    let hidden = |c: char| (c.is_control() && c != '\n' && c != '\t')
+        || matches!(c, '\u{00AD}' | '\u{034F}' | '\u{061C}' | '\u{180E}' | '\u{200B}'..='\u{200F}'
+            | '\u{202A}'..='\u{202E}' | '\u{2060}'..='\u{206F}' | '\u{FE00}'..='\u{FE0F}' | '\u{FEFF}');
+    !command.trim().is_empty()
+        && command.chars().count() <= COMMAND_MAX_CHARS
+        && command.lines().count() <= COMMAND_MAX_LINES
+        && !command.chars().any(hidden)
+}
+
 /// A model a provider's CLI offers: the id it takes and the name people see.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct ModelChoice {
@@ -128,6 +144,17 @@ pub fn provider_name(provider: AiProviderKind) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn only_plain_whole_commands_can_run() {
+        assert!(showable("node -v"));
+        assert!(showable("winget install -e --id CoreyButler.NVMforWindows\nnvm install lts"));
+        assert!(!showable(""));
+        assert!(!showable(&"x".repeat(COMMAND_MAX_CHARS + 1)));
+        assert!(!showable(&"echo 1\n".repeat(COMMAND_MAX_LINES + 1)));
+        assert!(!showable("echo ok\u{200B}; rm -r C:/"), "zero width");
+        assert!(!showable("echo \u{202E}fdp.exe"), "right-to-left override");
+        assert!(!showable("echo ok\rRemove-Item C:/x"), "a carriage return hides the start");
+    }
     #[test]
     fn blank_busy_and_history_are_bounded() {
         let mut c = Chat::default();

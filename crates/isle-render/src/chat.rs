@@ -38,7 +38,7 @@ pub fn approval_card(w: f32, h: f32, chat: &Chat) -> Option<ApprovalCard> {
             if l.is_empty() { vec![String::new()] } else { l }
         }).collect()
     });
-    let lines = (wrapped.len() <= APPROVAL_MAX_LINES).then_some(wrapped);
+    let lines = (wrapped.len() <= APPROVAL_MAX_LINES && isle_core::chat::showable(&a.command)).then_some(wrapped);
     let shown = lines.as_ref().map_or(2, Vec::len);
     let height = 84. + shown as f32 * APPROVAL_LINE;
     Some(ApprovalCard { top: h - 66. - height, height, lines })

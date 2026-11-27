@@ -111,6 +111,9 @@ impl IsleApp {
     }
     /// Executar or Negar on the command the assistant asks to run.
     fn answer_command(&mut self, run: bool) {
+        // Executar only for a command the card shows whole (button, Enter or any other way here).
+        let (w, h, _) = isle_render::layout::PANEL;
+        if run && !isle_render::chat::approval_card(w, h, &self.state.chat).is_some_and(|card| card.lines.is_some()) { return; }
         if self.state.chat.approval.take().is_none() { return; }
         if let Some(tx) = &self.chat_tx {
             let _ = tx.send(Command::Approve { generation: self.state.chat.generation, run });
@@ -234,7 +237,12 @@ impl IsleApp {
         }
         match ch {
             // A command waiting: Enter runs it, Esc denies it (isle's card).
-            '\r' if self.state.chat.approval.is_some() => self.answer_command(true),
+            // Enter runs only what Executar would: a command the card shows whole.
+            '\r' if self.state.chat.approval.is_some() => {
+                let (w, h, _) = isle_render::layout::PANEL;
+                let whole = isle_render::chat::approval_card(w, h, &self.state.chat).is_some_and(|card| card.lines.is_some());
+                if whole { self.answer_command(true) }
+            }
             '\u{1b}' if self.state.chat.approval.is_some() => self.answer_command(false),
             '\u{1b}' => self.close_ai_input(),
             _ if self.state.chat.busy => {}
@@ -362,6 +370,12 @@ mod tests {
         assert!(matches!(rx.try_recv().unwrap(), Command::Approve { generation: g, run: true } if g == generation));
         assert!(app.state.chat.approval.is_none());
         app.apply_ai_update(Update { generation, text: "✓ Instalar o nvm".into(), approval: Some(ask), ..Default::default() });
+        app.apply_input(UiInput::Char { window: 0, ch: '\u{1b}' }).unwrap();
+        assert!(matches!(rx.try_recv().unwrap(), Command::Approve { run: false, .. }));
+        let hidden = isle_core::chat::Approval { title: "Ver".into(), command: "echo ok\u{200B}; Remove-Item C:/x".into() };
+        app.apply_ai_update(Update { generation, text: "…".into(), approval: Some(hidden), ..Default::default() });
+        app.apply_input(UiInput::Char { window: 0, ch: '\r' }).unwrap();
+        assert!(rx.try_recv().is_err(), "Enter never runs what the card cannot show whole");
         app.apply_input(UiInput::Char { window: 0, ch: '\u{1b}' }).unwrap();
         assert!(matches!(rx.try_recv().unwrap(), Command::Approve { run: false, .. }));
         app.apply_ai_update(Update { generation, text: "Ok.".into(), done: true, ..Default::default() });

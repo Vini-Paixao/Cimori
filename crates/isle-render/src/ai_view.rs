@@ -240,7 +240,7 @@ impl PillRenderer {
                     self.label(line, x + 44., top + 39. + i as f32 * crate::chat::APPROVAL_LINE, 12., Weight::Regular, accent_light(0.4));
                 },
                 None => {
-                    self.clipped_label("Comando longo demais para mostrar inteiro.", x + 44., top + 39., w - 88., 12., Weight::Regular, red());
+                    self.clipped_label("Comando longo demais ou com caracteres escondidos.", x + 44., top + 39., w - 88., 12., Weight::Regular, red());
                     self.clipped_label("Negue e peça um comando menor.", x + 44., top + 39. + crate::chat::APPROVAL_LINE, w - 88., 12., Weight::Regular, muted());
                 }
             }
