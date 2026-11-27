@@ -13,7 +13,7 @@ at the top of the screen, which opens into panels with a click.
 
 **English** · [Português (Brasil)](README.pt-BR.md)
 
-<img src="docs/media/demo.webp" alt="A desktop with Cimori at the top: the pill showing a song opens on the music page, goes through the control center, calendar, weather, focus timer and AI usage, closes, shows a Claude Code permission request approved from the island and a message arriving" width="900">
+<img src="docs/media/demo.webp" alt="A desktop with Cimori at the top: the pill showing a song opens on the music page and goes through the control center, calendar, weather, focus timer and AI usage; the mascot opens the chat, where the model is switched from Sonnet to Opus and a command is approved with Run; the island closes, a Claude Code permission request is approved from it, and a message arrives" width="900">
 
 [![Download Cimori](https://img.shields.io/badge/Download%20for%20Windows-installer%20or%20portable-f2966c?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Vini-Paixao/Cimori/releases/latest)
 
@@ -23,7 +23,8 @@ Cimori turns the middle of the top of your screen into a black pill. Closed, it 
 playing, the weather or your next event. Click it (or just rest the mouse on it, if you prefer) and it
 opens with spring physics into a panel with a tab for each thing. Windows notifications, permission
 requests from Claude Code and Codex and a finished download show up in the same place instead of in a
-corner of the screen.
+corner of the screen. And through the mascot you chat with Claude Code, Codex or OpenCode Go, with the
+model you pick, right from the island.
 
 It is free software (GPL-3.0), written in Rust, with no Electron and no embedded browser: light on RAM
 and CPU. It was born from two free projects, [isle](https://github.com/zickrian/isle) by zickrian and
@@ -66,8 +67,12 @@ and CPU. It was born from two free projects, [isle](https://github.com/zickrian/
 <td width="56%"><img src="docs/media/timer.webp" alt="A running Pomodoro, with its ring and the time left" width="100%"></td>
 </tr>
 <tr>
-<td width="44%"><b>AI: usage and assistant.</b> How much of Claude and Codex you have used (the 5-hour session and the week) and when it resets, also as rings at the top of the panel. The mascot opens a quick chat with Claude Code, Codex or OpenCode, which runs a command only after you click Run.</td>
+<td width="44%"><b>AI: usage and assistant.</b> How much of Claude and Codex you have used (the 5-hour session and the week) and when it resets, also as rings at the top of the panel.</td>
 <td width="56%"><img src="docs/media/usage.webp" alt="The usage page: Claude's and Codex's quotas, with their bars and when they reset" width="100%"></td>
+</tr>
+<tr>
+<td width="44%"><b>Chat with your agents.</b> The mascot at the top of the panel opens a chat with Claude Code, Codex or OpenCode Go, through the programs and sign-ins you already have. Pick each one's model (click the agent's tab again, or in the settings) and ask for anything: the answer streams in. When the AI wants to run something on your PC, it shows the whole command on a card, and it runs only after you click Executar (Run).</td>
+<td width="56%"><img src="docs/media/chat.webp" alt="The mascot opens the chat; a second click on Claude's tab switches the model from Sonnet to Opus; a request to install Node is typed, the answer streams in and the winget command waits for Run" width="100%"></td>
 </tr>
 <tr>
 <td width="44%"><b>Agents on the island.</b> When Claude Code or Codex asks for permission, the island grows into a card with the command and you answer right there: Allow, Always or Deny. When they finish, a banner drops out of the pill.</td>
@@ -122,8 +127,13 @@ next to it).
 | Drag a file to the pill | Keep it on the shelf (with the Shelf module on) |
 | A keyboard shortcut of yours | Minimize and restore the island, or open the notifications (**Configurações → Atalhos**) |
 
-Almost everything is in the settings: which modules show and in what order, what the closed pill shows
-(and the clock in the middle), which monitors get an island and which apps it steps aside for.
+Almost everything is in the settings, a window of its own with search: which modules show and in what
+order, what the closed pill shows (and the clock in the middle), the look, the chat's models, which
+monitors get an island and which apps it steps aside for.
+
+<div align="center">
+<img src="docs/media/settings.webp" alt="The settings window going through its General, Look, Bar, AI and agents, Position and monitors, Hide, Media and Updates pages" width="860">
+</div>
 
 ## AI agents (hooks)
 

@@ -26,4 +26,9 @@ foreach ($line in Get-Content "$Out\chapters.txt") {
     Convert-Webp @("-ss", $from, "-t", "$length") "crop=1040:560:440:0,fps=24,scale=780:-1:flags=lanczos" "$Out\$name.webp"
 }
 Remove-Item "$Out\chapters.txt"
+
+# The settings window, page after page (the PNGs demo_reel wrote next to the video).
+& ffmpeg -v error -y -framerate 1/2.2 -i "$Out\settings-%02d.png" -vf "fps=10,scale=980:-1:flags=lanczos" -c:v libwebp_anim -q:v 80 -loop 0 "$Out\settings.webp"
+if ($LASTEXITCODE -ne 0) { throw "ffmpeg failed on settings.webp" }
+Remove-Item "$Out\settings-*.png"
 Get-ChildItem $Out | Select-Object Name, @{ n = "KB"; e = { [math]::Round($_.Length / 1KB) } }

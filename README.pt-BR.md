@@ -13,7 +13,7 @@ pílula no topo da tela, que abre em painéis com um clique.
 
 [English](README.md) · **Português (Brasil)**
 
-<img src="docs/media/demo.webp" alt="Um desktop com a Cimori no topo: a pílula com a música abre no painel da música, passa pela central de controle, agenda, clima, foco e uso da IA, fecha, mostra um pedido de permissão do Claude Code aprovado na ilha e uma mensagem que chega" width="900">
+<img src="docs/media/demo.webp" alt="Um desktop com a Cimori no topo: a pílula com a música abre no painel da música e passa pela central de controle, agenda, clima, foco e uso da IA; o mascote abre o chat, onde o modelo troca de Sonnet para Opus e um comando é aprovado com Executar; a ilha fecha, um pedido de permissão do Claude Code é aprovado nela e chega uma mensagem" width="900">
 
 [![Baixar a Cimori](https://img.shields.io/badge/Baixar%20para%20Windows-instalador%20ou%20port%C3%A1til-f2966c?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Vini-Paixao/Cimori/releases/latest)
 
@@ -23,7 +23,8 @@ A Cimori transforma o meio do topo da tela numa pílula preta. Fechada, ela most
 tocando, o clima ou o próximo compromisso. Um clique (ou só o mouse em cima, se você preferir) e ela se
 abre, com física de mola, num painel com uma aba para cada coisa. Avisos do Windows, pedidos de
 permissão do Claude Code e do Codex e o fim de um download aparecem no mesmo lugar, e não no canto da
-tela.
+tela. E, pelo mascote, você conversa com o Claude Code, o Codex ou o OpenCode Go, com o modelo que
+escolher, direto da ilha.
 
 É software livre (GPL-3.0), escrito em Rust, sem Electron e sem navegador embutido: leve em RAM e CPU.
 Nasceu da união de dois projetos livres, o [isle](https://github.com/zickrian/isle) de zickrian e o
@@ -64,8 +65,12 @@ Nasceu da união de dois projetos livres, o [isle](https://github.com/zickrian/i
 <td width="56%"><img src="docs/media/timer.webp" alt="O Pomodoro em andamento, com o anel e o tempo que falta" width="100%"></td>
 </tr>
 <tr>
-<td width="44%"><b>IA: uso e assistente.</b> Quanto você já usou do Claude e do Codex (a sessão de 5 horas e a semana) e quando renova, também em anéis no topo do painel. O mascote abre um chat rápido com o Claude Code, o Codex ou o OpenCode, que só roda um comando depois que você clica em Executar.</td>
+<td width="44%"><b>IA: uso e assistente.</b> Quanto você já usou do Claude e do Codex (a sessão de 5 horas e a semana) e quando renova, também em anéis no topo do painel.</td>
 <td width="56%"><img src="docs/media/usage.webp" alt="A página de uso: as cotas do Claude e do Codex com as barras e quando renovam" width="100%"></td>
+</tr>
+<tr>
+<td width="44%"><b>Converse com os seus agentes.</b> O mascote no topo do painel abre um chat com o Claude Code, o Codex ou o OpenCode Go, pelos programas e logins que você já tem. Escolha o modelo de cada um (clique de novo na aba do agente, ou em Configurações → IA e agentes) e peça o que quiser: a resposta chega aos poucos. Quando a IA quer rodar algo no seu PC, ela mostra o comando inteiro num cartão, e ele só roda depois que você clica em Executar.</td>
+<td width="56%"><img src="docs/media/chat.webp" alt="O mascote abre o chat; um segundo clique na aba do Claude troca o modelo de Sonnet para Opus; o pedido Instala o Node para mim é digitado, a resposta chega e o comando do winget espera por Executar" width="100%"></td>
 </tr>
 <tr>
 <td width="44%"><b>Agentes na ilha.</b> Quando o Claude Code ou o Codex pede permissão, a ilha cresce num cartão com o comando, e você responde ali: Permitir, Sempre ou Negar. Quando terminam, um aviso cai da pílula.</td>
@@ -124,8 +129,13 @@ registro `Cimori.log` ao lado).
 | Arraste um arquivo até a pílula | Guardá-lo na prateleira (com o módulo Prateleira ligado) |
 | Um atalho de teclado seu | Minimizar e restaurar a ilha, ou abrir os avisos (**Configurações → Atalhos**) |
 
-Quase tudo se ajusta em **Configurações**: quais módulos aparecem e em que ordem, o que a pílula
-fechada mostra (e o relógio no meio), em quais monitores ela fica e sobre quais apps ela some.
+Quase tudo se ajusta em **Configurações**, numa janela própria com busca: quais módulos aparecem e em
+que ordem, o que a pílula fechada mostra (e o relógio no meio), a aparência, os modelos do chat, em
+quais monitores ela fica e sobre quais apps ela some.
+
+<div align="center">
+<img src="docs/media/settings.webp" alt="A janela de configurações passando pelas páginas Geral, Aparência, Barra, IA e agentes, Posição e monitores, Esconder, Mídia e Atualizações" width="860">
+</div>
 
 ## Agentes de IA (hooks)
 

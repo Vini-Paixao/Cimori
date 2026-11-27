@@ -390,6 +390,74 @@ fn run() {
     if reel.open_tab(TabPage::AiHub) { reel.hold(2.6); }
     reel.end();
 
+    // The mascot opens the chat: a second click on Claude picks the next model, a request is typed, the
+    // answer streams in and the command waits for Executar.
+    reel.chapter("chat");
+    if let Some((x, y)) = reel.target(|a| *a == UiAction::AiOpen) {
+        use isle_core::state::AiProviderKind as P;
+        reel.move_to(x, y + 3., 0.6);
+        reel.click();
+        reel.state.chat.open = true;
+        reel.state.chat.provider = P::ClaudeCode;
+        reel.state.chat.model_label = "Sonnet".into();
+        reel.set_mode(PillMode::Expanded(TabPage::AiHub));
+        reel.hold(1.1);
+        if let Some((x, y)) = reel.target(|a| *a == UiAction::AiProvider(P::ClaudeCode)) {
+            reel.move_to(x, y + 3., 0.6);
+            reel.click();
+            reel.state.chat.model_label = "Opus".into();
+            reel.hold(0.9);
+        }
+        if let Some((x, y)) = reel.target(|a| *a == UiAction::AiInput) {
+            reel.move_to(x - 140., y + 3., 0.6);
+            reel.click();
+        }
+        let ask = "Instala o Node para mim";
+        for i in 1..=ask.chars().count() {
+            reel.state.chat.input.text = ask.chars().take(i).collect();
+            reel.state.chat.caret = Some(true);
+            reel.hold(1. / 15.);
+        }
+        reel.hold(0.4);
+        if let Some((x, y)) = reel.target(|a| *a == UiAction::AiSend) {
+            reel.move_to(x, y + 3., 0.5);
+            reel.click();
+        }
+        reel.state.chat.items.push(isle_core::chat::Message { user: true, text: ask.into() });
+        reel.state.chat.input.text.clear();
+        reel.state.chat.caret = None;
+        reel.state.chat.busy = true;
+        reel.state.chat.items.push(isle_core::chat::Message { user: false, text: String::new() });
+        reel.hold(0.6);
+        let answer = "✓ Ver o que está instalado\nO Node não está instalado. Vou instalar o nvm-windows pelo winget, e com ele a versão LTS do Node.";
+        for i in (0..=answer.chars().count()).step_by(3) {
+            reel.state.chat.items.last_mut().unwrap().text = answer.chars().take(i).collect();
+            reel.draw();
+        }
+        reel.state.chat.items.last_mut().unwrap().text = answer.into();
+        reel.state.chat.approval = Some(isle_core::chat::Approval {
+            title: "Instalar o nvm-windows".into(),
+            command: "winget install -e --id CoreyButler.NVMforWindows".into(),
+        });
+        reel.hold(1.4);
+        if let Some((x, y)) = reel.target(|a| *a == UiAction::AiRun) {
+            reel.move_to(x, y + 3., 0.8);
+            reel.click();
+        }
+        reel.state.chat.approval = None;
+        reel.hold(0.8);
+        let done = "\n✓ Instalar o nvm-windows\nPronto: o nvm-windows está instalado. Abra um terminal novo e rode nvm install lts.";
+        let base = reel.state.chat.items.last().unwrap().text.clone();
+        for i in (0..=done.chars().count()).step_by(3) {
+            reel.state.chat.items.last_mut().unwrap().text = format!("{base}{}", done.chars().take(i).collect::<String>());
+            reel.draw();
+        }
+        reel.state.chat.items.last_mut().unwrap().text = format!("{base}{done}");
+        reel.state.chat.busy = false;
+        reel.hold(2.4);
+    }
+    reel.end();
+
     // The mouse leaves: it closes back to the pill.
     reel.move_to(1250., 640., 0.9);
     reel.set_mode(PillMode::CompactBar);
@@ -438,7 +506,24 @@ fn run() {
     drop(reel.out);
     let status = ffmpeg.wait().expect("ffmpeg ran");
     assert!(status.success(), "ffmpeg failed");
+    settings_tour(std::path::Path::new(&out).parent().unwrap_or(std::path::Path::new(".")), &reel.cfg, &reel.state);
     let list: String = reel.chapters.iter().map(|(n, a, b)| format!("{n} {a:.2} {b:.2}\n")).collect();
     match chapters_file { Some(f) => std::fs::write(f, list).expect("write chapters"), None => print!("{list}") }
     println!("{out}: {:.1} s", reel.t);
+}
+
+/// The settings window, a few of its pages: `settings-01.png`, `settings-02.png`… next to the video.
+fn settings_tour(dir: &std::path::Path, cfg: &IsleConfig, state: &IslandState) {
+    use isle_core::prefs::SettingsTab as T;
+    let place = |d: &str, left| isle_render::window::MonitorPlace { device: d.into(), left, top: 0, width: 1920, scale: 1.0, primary: left == 0 };
+    for (i, tab) in [T::General, T::Look, T::Bar, T::Ai, T::Monitors, T::Hiding, T::Media, T::Updates].into_iter().enumerate() {
+        let mut view = isle_render::settings::SettingsView { tab, ..Default::default() };
+        view.info.extend([("info.version", "Versão 1.0.4".into()), ("info.hooks", "Instalados".into()), ("info.bridge", "Ligada".into())]);
+        view.monitors = vec![place(r"\\.\DISPLAY1", 0), place(r"\\.\DISPLAY2", 1920)];
+        let mut renderer = PillRenderer::with_scale(1180, 760, 1.0);
+        let fb = renderer.render_settings(&view, cfg, state);
+        let rgba: Vec<u8> = fb.bgra_premultiplied.chunks_exact(4).flat_map(|p| [p[2], p[1], p[0], 255]).collect();
+        let pixmap = Pixmap::from_vec(rgba, tiny_skia::IntSize::from_wh(fb.width, fb.height).unwrap()).unwrap();
+        pixmap.save_png(dir.join(format!("settings-{:02}.png", i + 1))).expect("write settings png");
+    }
 }
