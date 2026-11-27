@@ -81,24 +81,9 @@ pub fn expanded_size(tab: TabPage) -> (f32, f32, f32) {
         _ => PANEL,
     }
 }
-/// The tabs whose module is on, in the navigation's order.
+/// The tabs whose module is on, in the user's order ("Ordem das abas").
 pub fn visible_tabs(m: &isle_core::config::Modules) -> Vec<TabPage> {
-    TABS.into_iter()
-        .filter(|t| match t {
-            TabPage::AiHub => m.ai,
-            TabPage::ControlCenter => m.control,
-            TabPage::CalendarWeather => m.agenda,
-            TabPage::Weather => m.weather,
-            TabPage::Media => m.media,
-            TabPage::Notifications => m.notifications,
-            TabPage::Timer => m.timer,
-            TabPage::Tray => m.tray,
-            TabPage::Shelf => m.shelf,
-            TabPage::Clipboard => m.clipboard,
-            TabPage::Usb => m.usb,
-            TabPage::Downloads => m.downloads,
-            TabPage::Power => false,
-        })
+    m.order.into_iter().filter(|t| m.shows(*t))
         .collect()
 }
 
@@ -176,6 +161,18 @@ pub fn header(left: f32, top: f32, w: f32, s: &IslandState) -> Header {
         let bars = playing.then(|| { x -= 28.; at(x, 24., A::SwitchTab(TabPage::Media)) });
         Header { bars, mascot, rings, date_x, time_x, gear, collapse, start: x - 8. }
     })
+}
+/// How wide the open panel must be for its header not to crowd: the tabs at isle's 7 px padding with the
+/// longest name among them, then the right side (room for the music's bars even while nothing plays, so
+/// the panel keeps one width). The same for every tab, as `PANEL`.
+pub fn header_room(s: &IslandState) -> f32 {
+    let tabs = visible_tabs(&s.modules);
+    let name = crate::pages::BAR_TEXT.with(|t| tabs.iter().map(|tab| t.width(tab.label(), 13., crate::text::Weight::Semibold)).fold(0., f32::max)) + 6.;
+    let far = 10_000.;
+    let head = header(0., 0., far, s);
+    let bars = if s.modules.media && head.bars.is_none() { 28. } else { 0. };
+    // + 1: `navigation` compares to the room, which this would equal exactly.
+    21. + tabs.len() as f32 * (16. + 7. * 2. + 2.) + name + (far - head.start) + bars
 }
 /// Port of UsagePage._content (isle), every provider stacked: the head (20), 14 apart, then each limit
 /// (its line and bar, 27) 11 apart; the providers 24 apart.

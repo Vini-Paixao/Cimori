@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use crate::state::ControlTile;
+use crate::state::{ControlTile, TabPage};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PinnedTrayApp {
@@ -196,11 +196,26 @@ pub struct Modules {
     pub shelf: bool,
     pub usb: bool,
     pub downloads: bool,
+    /// The open panel's tabs, in the order the user dragged them to ("Ordem das abas"): every tab once.
+    pub order: [TabPage; 12],
+}
+
+impl Modules {
+    /// Whether a tab's module is on: the panel shows it.
+    pub fn shows(&self, t: TabPage) -> bool {
+        match t {
+            TabPage::AiHub => self.ai, TabPage::ControlCenter => self.control, TabPage::CalendarWeather => self.agenda,
+            TabPage::Weather => self.weather, TabPage::Media => self.media, TabPage::Notifications => self.notifications,
+            TabPage::Timer => self.timer, TabPage::Tray => self.tray, TabPage::Shelf => self.shelf,
+            TabPage::Clipboard => self.clipboard, TabPage::Usb => self.usb, TabPage::Downloads => self.downloads,
+            TabPage::Power => false,
+        }
+    }
 }
 
 impl Default for Modules {
     fn default() -> Self {
-        Self { ai: true, control: true, agenda: true, weather: true, media: true, notifications: true, timer: true, tray: true, clipboard: false, shelf: false, usb: false, downloads: false }
+        Self { ai: true, control: true, agenda: true, weather: true, media: true, notifications: true, timer: true, tray: true, clipboard: false, shelf: false, usb: false, downloads: false, order: TabPage::NAV }
     }
 }
 
@@ -566,6 +581,9 @@ impl IsleConfig {
         within(&mut self.clipboard_limit, 1..=20, d.clipboard_limit);
         within(&mut self.shelf_capacity, 1..=6, d.shelf_capacity);
         within(&mut self.shelf_idle_minutes, 1..=30, d.shelf_idle_minutes);
+        if !TabPage::NAV.iter().all(|t| self.modules.order.contains(t)) {
+            self.modules.order = TabPage::NAV;
+        }
         let mut seen = std::collections::HashSet::new();
         self.bar_items.retain(|i| seen.insert(*i));
         if self.bar_items.is_empty() {
