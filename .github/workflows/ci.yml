@@ -15,7 +15,38 @@ permissions:
   contents: read
 
 jobs:
+  # What the change touches. Docs only (the READMEs, docs/ and the tool that draws docs/media): no
+  # tests, no release. Only the workflows besides: tests, no release. A skipped `test` still counts as
+  # passed for main's required check.
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.diff.outputs.code }}
+      app: ${{ steps.diff.outputs.app }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: diff
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ "$EVENT" = workflow_dispatch ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            echo "code=true" >> "$GITHUB_OUTPUT"; echo "app=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          changed=$(git diff --name-only "$BASE" "$GITHUB_SHA")
+          echo "$changed"
+          code=$(echo "$changed" | grep -vE '\.md$|^docs/|^LICENSE$|^scripts/readme-media\.ps1$|^crates/isle-render/examples/demo_reel\.rs$' || true)
+          app=$(echo "$code" | grep -vE '^\.github/' || true)
+          echo "code=$([ -n "$code" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "app=$([ -n "$app" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
   test:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -26,8 +57,8 @@ jobs:
       - run: cargo test --workspace --locked
 
   release:
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    needs: test
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && needs.changes.outputs.app == 'true'
+    needs: [changes, test]
     permissions:
       contents: write
     uses: ./.github/workflows/release.yml
