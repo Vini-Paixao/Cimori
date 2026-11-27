@@ -20,7 +20,8 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 /// The canvas each window draws the pill in, in logical (100%) pixels.
-pub const CANVAS_MAX_WIDTH: i32 = 720;
+// Room for the open panel's whole header with every tab on (`layout::header_room`, ~820).
+pub const CANVAS_MAX_WIDTH: i32 = 880;
 pub const CANVAS_MAX_HEIGHT: i32 = 520;
 
 pub fn point_inside_pill(
@@ -1416,16 +1417,17 @@ mod tests {
         };
         assert_eq!(HitArea::unpack(area.pack(1.5)), Some((area, 1.5)));
         assert_eq!(HitArea::unpack(0), None);
-        assert!(area.contains(360.0, 20.0) && !area.contains(360.0, 2.0) && !area.contains(100.0, 20.0));
+        let mid = CANVAS_MAX_WIDTH as f32 / 2.0;
+        assert!(area.contains(mid, 20.0) && !area.contains(mid, 2.0) && !area.contains(mid - 260.0, 20.0));
 
         let mut geom = PillGeometry::default();
         (geom.width.value, geom.height.value) = (120.0, 5.0);
         let line = HitArea::of(&geom, 6.0, &PillMode::Minimized);
-        assert!(line.contains(360.0, 0.0),
+        assert!(line.contains(mid, 0.0),
             "the screen's top edge brings it back"
         );
-        assert!(line.contains(360.0 - 60.0 - 15.0, 3.0));
-        assert!(!line.contains(360.0, 30.0));
+        assert!(line.contains(mid - 60.0 - 15.0, 3.0));
+        assert!(!line.contains(mid, 30.0));
     }
 
     #[test]

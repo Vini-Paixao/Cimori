@@ -182,7 +182,8 @@ impl PillRenderer {
         let mid = row_y + crate::layout::HEAD_H / 2.;
         if let Some(b) = &head.bars {
             // mac-island's playing bars: four, rising and falling out of step.
-            let t = state.now_ms as f32 / 1000.;
+            // Seconds within the hour: the Unix ms as an f32 moved only every ~131 s, freezing the bars.
+            let t = state.now_ms.rem_euclid(3_600_000) as f32 / 1000.;
             for i in 0..4 {
                 let k = i as f32;
                 let level = 0.35 + 0.65 * (0.5 + 0.5 * (t * (5.1 + k * 1.7) + k * 1.9).sin()).powf(1.4);

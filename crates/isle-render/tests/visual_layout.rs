@@ -270,3 +270,50 @@ fn the_open_tab_says_its_name_on_a_pill_and_the_star_sits_before_the_date() {
     }
 }
 
+
+#[test]
+fn the_header_room_fits_every_tab_padded_and_follows_the_users_order() {
+    use isle_core::config::Modules;
+    let mut s = IslandState::default();
+    s.modules = Modules { clipboard: true, shelf: true, usb: true, downloads: true, ..Modules::default() };
+    s.date_text = "qua 30 set 2026".into();
+    s.clock_text = "23:59".into();
+    s.media = Some(isle_core::state::MediaInfo { artwork: None, title: "a".into(), artist: "b".into(),
+        playing: true, position_ms: 0, duration_ms: 1, sampled_at_ms: 0 });
+    let w = isle_render::layout::header_room(&s);
+    assert!(w <= isle_render::window::CANVAS_MAX_WIDTH as f32 - 8., "{w}");
+    let head = isle_render::layout::header(0., 0., w, &s);
+    for open in [TabPage::Shelf, TabPage::Downloads, TabPage::ControlCenter] {
+        let nav = isle_render::layout::navigation(0., 0., head.start, &s.modules, Some(open));
+        assert_eq!(nav.len(), 12);
+        assert!(isle_render::layout::tab_pad(&nav) >= 7., "{open:?} crowded at {w}");
+        // The open tab keeps its name.
+        assert!(nav.iter().any(|b| b.action == UiAction::SwitchTab(open) && b.w > 16. + 14. + 1.));
+    }
+    // The user's order: Uso first, then the rest as they were.
+    let mut order = TabPage::NAV;
+    order.rotate_right(1);
+    s.modules.order = order;
+    assert_eq!(isle_render::layout::visible_tabs(&s.modules).first(), Some(&TabPage::AiHub));
+}
+
+#[test]
+fn the_music_bars_move_from_frame_to_frame() {
+    use isle_core::spring::PillGeometry;
+    isle_render::window::set_animation_level(isle_core::config::AnimationLevel::On);
+    let mut s = IslandState::default();
+    s.mode = PillMode::Expanded(TabPage::Weather);
+    s.media = Some(isle_core::state::MediaInfo { artwork: None, title: "a".into(), artist: "b".into(),
+        playing: true, position_ms: 0, duration_ms: 1, sampled_at_ms: 0 });
+    let cfg = isle_core::config::IsleConfig::default();
+    let mut geom = PillGeometry::default();
+    geom.morph_to(620., 430., 28.);
+    (geom.width.value, geom.height.value, geom.corner_radius.value) = (620., 430., 28.);
+    let mut r = isle_render::renderer::PillRenderer::new(720, 520);
+    // Today's clock, 100 ms apart: the bars' pixels differ.
+    s.now_ms = 1_795_811_150_000;
+    let a = r.render(&geom, &s, &cfg).bgra_premultiplied.clone();
+    s.now_ms += 100;
+    let b = r.render(&geom, &s, &cfg).bgra_premultiplied.clone();
+    assert_ne!(a, b);
+}

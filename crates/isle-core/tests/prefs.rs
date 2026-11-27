@@ -1,5 +1,5 @@
 use isle_core::config::IsleConfig;
-use isle_core::prefs::{self, PrefKind, SettingsTab};
+use isle_core::prefs::{self, PrefKind, PrefValue, SettingsTab};
 
 #[test]
 fn every_pref_round_trips_through_get_and_set() {
@@ -169,4 +169,34 @@ fn every_pref_keeps_a_changed_value_through_settings_json() {
         }
     }
     assert!(failures.is_empty(), "\n{}", failures.join("\n"));
+}
+
+#[test]
+fn tab_order_moves_the_shown_tabs_and_ignores_adding_or_removing() {
+    use isle_core::state::TabPage;
+    let p = prefs::by_id("modules.order").unwrap();
+    let mut c = isle_core::config::IsleConfig::default();
+    let PrefValue::List(mut names) = (p.get)(&c) else { panic!() };
+    assert_eq!(names.first().map(String::as_str), Some("media"));
+    let uso = names.pop().unwrap();
+    names.insert(0, uso);
+    (p.set)(&mut c, PrefValue::List(names.clone()));
+    assert_eq!((p.get)(&c), PrefValue::List(names.clone()));
+    // The hidden tabs (Prateleira, off) keep their places among all twelve.
+    assert_eq!(c.modules.order.iter().position(|t| *t == TabPage::Shelf), TabPage::NAV.iter().position(|t| *t == TabPage::Shelf));
+    // Dragged out, or a stranger added: nothing changes.
+    let before = c.modules.order;
+    (p.set)(&mut c, PrefValue::List(names[1..].to_vec()));
+    let mut more = names.clone();
+    more.push("shelf".into());
+    (p.set)(&mut c, PrefValue::List(more));
+    assert_eq!(c.modules.order, before);
+    // Each chip shows its tab's name.
+    for t in TabPage::NAV {
+        let key = prefs::tab_key(t);
+        assert_eq!(prefs::chip_choices("modules.order").iter().find(|c| c.0 == key).map(|c| c.1), Some(t.label()));
+    }
+    // A broken order on disk comes back as isle's.
+    c.modules.order = [TabPage::Media; 12];
+    assert_eq!(c.sanitized().modules.order, TabPage::NAV);
 }

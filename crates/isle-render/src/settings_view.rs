@@ -368,7 +368,7 @@ impl PillRenderer {
             }
             PrefKind::Chips => {
                 let items = settings::chip_items(p.id, cfg, view);
-                let ordered = settings::ordered(p.id);
+                let ordered = settings::closable(p.id);
                 // The chips are flowed the same way the hits are.
                 let mut x = 0.;
                 let mut line = 0;
