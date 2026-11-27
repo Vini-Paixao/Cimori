@@ -370,10 +370,11 @@ impl PillRenderer {
         h: f32,
         s: &IslandState,
     ) {
+        let body = y + crate::layout::TRAY_DROP;
         self.label(
             "Por perto.",
             x + 20.,
-            y + CONTENT + 4.,
+            body + CONTENT + 4.,
             20.,
             Weight::Medium,
             white(),
@@ -382,7 +383,7 @@ impl PillRenderer {
         if count == 0 {
             self.empty_state(
                 x,
-                y + CONTENT + 37.,
+                body + CONTENT + 37.,
                 w,
                 "Tudo à mão",
                 s.tray_error

@@ -11,6 +11,8 @@ impl PillRenderer {
         h: f32,
         s: &IslandState,
     ) {
+        // The buttons come from the hitboxes (lowered there); the rest is lowered here.
+        let (top, y) = (y, y + crate::layout::MEDIA_DROP);
         let Some(m) = &s.media else {
             self.empty_state(
                 x,
@@ -84,7 +86,7 @@ impl PillRenderer {
             Weight::Regular,
             muted(),
         );
-        for hb in compute_hitboxes(canvas, w, h, y, s) {
+        for hb in compute_hitboxes(canvas, w, h, top, s) {
             if let UiAction::Media(key) = hb.action {
                 let play = key == MediaKey::PlayPause;
                 self.round(

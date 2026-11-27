@@ -68,6 +68,10 @@ pub fn viewport_hitboxes(canvas:f32,w:f32,h:f32,top:f32,s:&IslandState)->Vec<Hit
 }
 /// Every tab's panel: one size, so going from tab to tab does not resize the island.
 pub const PANEL: (f32, f32, f32) = (620.0, 470.0, 28.0);
+/// Música and Bandeja were made for a shorter panel (380 and 390): their content goes this much lower,
+/// in the middle of `PANEL` (drawing and clicks alike).
+pub const MEDIA_DROP: f32 = (PANEL.1 - 380.0) / 2.0;
+pub const TRAY_DROP: f32 = (PANEL.1 - 390.0) / 2.0;
 
 pub fn expanded_size(tab: TabPage) -> (f32, f32, f32) {
     match tab {
@@ -258,7 +262,7 @@ pub fn expanded_hitboxes(canvas: f32, w: f32, h: f32, top: f32, s: &IslandState)
                 let size = if i == 1 { 50.0 } else { 36.0 };
                 add(
                     w / 2.0 + (i as f32 - 1.0) * 64.0 - size / 2.0,
-                    BODY + 152.0 + (50.0 - size) / 2.0,
+                    BODY + MEDIA_DROP + 152.0 + (50.0 - size) / 2.0,
                     size,
                     size,
                     UiAction::Media(k),
@@ -364,7 +368,7 @@ pub fn expanded_hitboxes(canvas: f32, w: f32, h: f32, top: f32, s: &IslandState)
             {
                 add(
                     20.0 + (n % columns) as f32 * cell_w,
-                    BODY + 48.0 + (n / columns) as f32 * row_pitch,
+                    BODY + TRAY_DROP + 48.0 + (n / columns) as f32 * row_pitch,
                     cell_w - 6.0,
                     cell_h,
                     UiAction::TrayClick(*i, false),
