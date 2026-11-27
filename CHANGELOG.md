@@ -14,6 +14,17 @@ Todas as mudanças relevantes da Cimori. Versões no formato [SemVer](https://se
   aparecem mesmo assim. Jogos e vídeos em tela cheia continuam sem.
 
 ### Mudou
+- **Cabeçalho do painel numa linha só**, como no isle: as abas à esquerda; à direita as barrinhas da
+  música (enquanto toca), o **mascote** no lugar da estrela (abre o chat), o anel de uso do Claude e/ou
+  do Codex (IA › Topo do painel; abre a aba Uso), a data, a hora, a engrenagem e a seta. O conteúdo de
+  todas as abas sobe 38 px; o "Editar" do Controle vai para essa linha.
+- **Modelo do chat**: Claude (Padrão, Opus, Sonnet, Haiku), Codex e OpenCode Go (os modelos que cada
+  CLI lista para o seu login) em IA › Modelos do chat; no chat, tocar de novo na aba do provedor troca o
+  modelo ("Claude · Opus").
+- **O assistente pode rodar comandos, só com a sua aprovação** (como no isle): ele pede um comando do
+  PowerShell, a ilha mostra o comando inteiro com **Negar (Esc)** e **Executar (Enter)**, e a saída volta
+  para ele continuar. Nada roda sem aprovação; um comando longo demais para mostrar inteiro só pode ser
+  negado.
 - **Barra fechada refeita**: os itens ficam lado a lado, na ordem da lista, sem o vão gigante no
   meio; a pílula tem a largura dos itens ("Largura mínima da ilha fechada" vira o mínimo).
 - **Relógio no meio** como no mac-island: o relógio fica no centro e os outros itens se dividem dos

@@ -398,6 +398,17 @@ pub fn chip_choices(id: &str) -> &'static [(&'static str, &'static str)] {
     }
 }
 
+/// A model row's chips: one marked at most (the chosen model), none for the CLI's default.
+fn one_model(model: &str) -> PrefValue {
+    PrefValue::List(if model.is_empty() { vec![] } else { vec![model.to_owned()] })
+}
+/// A chip touched: the one added (the last) is the model now; the marked one touched again, the default.
+fn pick_model(slot: &mut String, v: PrefValue) {
+    if let PrefValue::List(list) = v {
+        *slot = list.into_iter().rfind(|m| *m != *slot).unwrap_or_default();
+    }
+}
+
 fn text_opt(v: &Option<String>) -> PrefValue {
     PrefValue::Text(v.clone().unwrap_or_default())
 }
@@ -570,6 +581,18 @@ static PREFS: &[Pref] = &[
         enabled: on_ai, restart: false },
     switch!("ai_claude_enabled", Ai, "Agentes", "Claude Code", "Cotas na ilha e na aba Uso", "claude anthropic", ai_claude_enabled, on_ai),
     switch!("ai_codex_enabled", Ai, "Agentes", "Codex", "Cotas na ilha e na aba Uso", "codex openai", ai_codex_enabled, on_ai),
+    Pref { id: "ai_claude_model", tab: SettingsTab::Ai, card: "Modelos do chat", name: "Claude",
+        desc: "O modelo que responde no chat; troque também tocando na aba do Claude no chat", words: "modelo claude opus sonnet haiku chat assistente",
+        kind: PrefKind::Choice(&["Padrão", "Opus", "Sonnet", "Haiku"]),
+        get: |c| PrefValue::Index(["", "opus", "sonnet", "haiku"].iter().position(|m| *m == c.ai_claude_model).unwrap_or(0)),
+        set: |c, v| if let PrefValue::Index(i) = v { c.ai_claude_model = ["", "opus", "sonnet", "haiku"].get(i).copied().unwrap_or("").into() },
+        enabled: on_ai, restart: false },
+    Pref { id: "ai_codex_model", tab: SettingsTab::Ai, card: "Modelos do chat", name: "Codex",
+        desc: "Os modelos que o Codex lista para o seu login; nenhum marcado: o padrão dele", words: "modelo codex gpt chat assistente",
+        kind: PrefKind::Chips, get: |c| one_model(&c.ai_codex_model), set: |c, v| pick_model(&mut c.ai_codex_model, v), enabled: on_ai, restart: false },
+    Pref { id: "ai_opencode_model", tab: SettingsTab::Ai, card: "Modelos do chat", name: "OpenCode Go",
+        desc: "Os modelos do OpenCode Go para a sua chave; nenhum marcado: o primeiro da lista", words: "modelo opencode go chat assistente",
+        kind: PrefKind::Chips, get: |c| one_model(&c.ai_opencode_model), set: |c, v| pick_model(&mut c.ai_opencode_model, v), enabled: on_ai, restart: false },
     Pref { id: "opencode_api_key", tab: SettingsTab::Ai, card: "Agentes", name: "Chave do OpenCode Go", desc: "",
         words: "opencode api chave", kind: PrefKind::Text { secret: true, placeholder: "sk-..." },
         get: |c| text_opt(&c.opencode_api_key), set: |c, v| set_opt(&mut c.opencode_api_key, v), enabled: on_ai, restart: false },

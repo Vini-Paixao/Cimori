@@ -262,6 +262,9 @@ pub struct IsleApp {
     chat_window: Option<usize>,
     /// The page the ✦ was pressed on: the assistant's back arrow returns to it.
     ai_return: Option<TabPage>,
+    /// The models each provider's CLI listed (asked once a run, when the chat or the settings open).
+    ai_models: Vec<(isle_core::state::AiProviderKind, Vec<isle_core::chat::ModelChoice>)>,
+    ai_models_asked: Vec<isle_core::state::AiProviderKind>,
     chat_tx: Option<tokio::sync::mpsc::UnboundedSender<isle_ai::assistant::Command>>,
 }
 
@@ -409,6 +412,8 @@ impl IsleApp {
             reply_window: 0,
             chat_window: None,
             ai_return: None,
+            ai_models: Vec::new(),
+            ai_models_asked: Vec::new(),
             chat_tx: None,
         }
     }
@@ -731,6 +736,7 @@ impl IsleApp {
             self.tick_runtime_domain(SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs());
         }
         self.apply_phase8_config(Some(old));
+        self.sync_model_label();
         if old.check_updates != c.check_updates {
             self.sync_update_check();
         }
@@ -1062,7 +1068,7 @@ impl IsleApp {
     pub fn apply_ui_action_on(&mut self, island: usize, action: UiAction) {
         match action {
             UiAction::Phase8(action) => self.phase8_action(island, action),
-            UiAction::AiOpen | UiAction::AiBack | UiAction::AiInput | UiAction::AiSend | UiAction::AiStop | UiAction::AiNew | UiAction::AiProvider(_) | UiAction::AiScroll(_) | UiAction::AiIdea(_) => self.ai_action(island,action),
+            UiAction::AiOpen | UiAction::AiBack | UiAction::AiInput | UiAction::AiSend | UiAction::AiStop | UiAction::AiNew | UiAction::AiProvider(_) | UiAction::AiScroll(_) | UiAction::AiIdea(_) | UiAction::AiRun | UiAction::AiDeny => self.ai_action(island,action),
             UiAction::ReplyNotification(id, arrival) => {
                 self.close_ai_input();
                 self.stop_typing_reminder();

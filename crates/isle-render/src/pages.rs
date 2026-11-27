@@ -25,6 +25,9 @@ pub enum UiAction {
     AiStop,
     AiNew,
     AiProvider(isle_core::state::AiProviderKind),
+    /// The command the assistant asks to run: Executar (Enter) or Negar (Esc).
+    AiRun,
+    AiDeny,
     AiScroll(i32),
     /// One of the assistant's ideas under its empty field (`chat::IDEAS`).
     AiIdea(usize),

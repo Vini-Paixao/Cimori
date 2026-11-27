@@ -381,6 +381,20 @@ fn shots() {
             settled(520.0, 360.0, 26.0),
         ),
         (
+            "ai-approval",
+            {
+                let mut s = chat(isle_core::state::AiProviderKind::ClaudeCode, "", "✓ Ver o que está instalado
+O Node não está instalado. Vou instalar o nvm-windows pelo winget.", true, None);
+                s.chat.model_label = "Opus".into();
+                s.chat.approval = Some(isle_core::chat::Approval {
+                    title: "Instalar o nvm-windows".into(),
+                    command: "winget install -e --id CoreyButler.NVMforWindows --accept-package-agreements --accept-source-agreements".into(),
+                });
+                s
+            },
+            settled(isle_render::layout::PANEL.0, isle_render::layout::PANEL.1, isle_render::layout::PANEL.2),
+        ),
+        (
             "ai-error",
             chat(
                 isle_core::state::AiProviderKind::OpenCodeGo,

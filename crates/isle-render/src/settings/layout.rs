@@ -146,7 +146,7 @@ fn flow(text: &Text, items: &[(String, String, bool)], width: f32, ordered: bool
 
 /// Chips that are dragged into an order; the others (apps turned on or off) are only toggled.
 pub fn ordered(pref: &str) -> bool {
-    !matches!(pref, "muted_apps" | "hide_apps")
+    !matches!(pref, "muted_apps" | "hide_apps" | "ai_codex_model" | "ai_opencode_model")
 }
 
 /// Choices too many for a segmented control, shown as a list of rows (the icon packs, the opening tab).

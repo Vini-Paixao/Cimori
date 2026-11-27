@@ -13,6 +13,22 @@ pub struct Message {
     pub text: String,
 }
 
+/// A command the assistant asks to run on this computer: shown with Executar and Negar (isle's Run/Deny).
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Approval {
+    /// What it does, in the user's words ("Instalar o Node pelo nvm").
+    pub title: String,
+    /// The PowerShell command, shown whole.
+    pub command: String,
+}
+
+/// A model a provider's CLI offers: the id it takes and the name people see.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct ModelChoice {
+    pub id: String,
+    pub name: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Chat {
     pub open: bool,
@@ -27,6 +43,10 @@ pub struct Chat {
     /// The input's caret while it has the keyboard: whether this frame draws it. None when unfocused.
     #[serde(skip)]
     pub caret: Option<bool>,
+    /// A command waiting for Executar or Negar.
+    pub approval: Option<Approval>,
+    /// The model the open provider answers with ("Opus"); empty: the CLI's own default.
+    pub model_label: String,
 }
 impl Default for Chat {
     fn default() -> Self {
@@ -40,6 +60,8 @@ impl Default for Chat {
             error: None,
             scroll: 0,
             caret: None,
+            approval: None,
+            model_label: String::new(),
         }
     }
 }
@@ -81,6 +103,7 @@ impl Chat {
         self.error = error;
         if done {
             self.busy = false;
+            self.approval = None;
         }
     }
     pub fn reset(&mut self, provider: AiProviderKind) {
@@ -88,6 +111,7 @@ impl Chat {
             open: self.open,
             generation: self.generation.wrapping_add(1),
             provider,
+            model_label: std::mem::take(&mut self.model_label),
             ..Self::default()
         };
     }

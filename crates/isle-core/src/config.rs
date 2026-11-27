@@ -52,6 +52,10 @@ pub struct IsleConfig {
     pub ai_claude_enabled: bool,
     pub ai_codex_enabled: bool,
     pub opencode_api_key: Option<String>,
+    /// The model each provider answers the chat with, as its CLI names it ("opus"); empty: its default.
+    pub ai_claude_model: String,
+    pub ai_codex_model: String,
+    pub ai_opencode_model: String,
     pub hook_port: u16,
 
     // The settings window (docs/superpowers/specs/2026-11-11-configuracoes-design.md).
@@ -428,6 +432,9 @@ impl Default for IsleConfig {
             ai_claude_enabled: true,
             ai_codex_enabled: true,
             opencode_api_key: None,
+            ai_claude_model: String::new(),
+            ai_codex_model: String::new(),
+            ai_opencode_model: String::new(),
             hook_port: 47830,
             bar_items: vec![BarItem::Clock, BarItem::Next, BarItem::Weather, BarItem::Tray],
             bar_quota_strip: true,

@@ -120,8 +120,9 @@ impl PillRenderer {
                     } else {
                         self.ui_icon(Icon::Spark, hb.x + 16., hb.y + 15., 14., muted());
                     }
+                    let label = if on && !c.model_label.is_empty() { format!("{name} · {}", c.model_label) } else { name.to_owned() };
                     self.clipped_label(
-                        name,
+                        &label,
                         hb.x + 30.,
                         centered_top(hb.y, hb.h, 11.),
                         hb.w - 35.,
@@ -207,7 +208,8 @@ impl PillRenderer {
             self.avatar(x + 20., y + CONTENT + 47., 26., mood);
             let rows = crate::chat::lines(&self.text, c, w - 100.);
             let top = y + crate::chat::TEXT_TOP;
-            let capacity = ((h - 106. - crate::chat::TEXT_TOP) / crate::chat::LINE_HEIGHT)
+            let card = crate::chat::approval_card(w, h, c).map_or(0., |card| card.height);
+            let capacity = ((h - 106. - card - crate::chat::TEXT_TOP) / crate::chat::LINE_HEIGHT)
                 .floor()
                 .max(1.) as usize;
             let range = crate::chat::visible_range(rows.len(), capacity, c.scroll);
@@ -226,11 +228,46 @@ impl PillRenderer {
                 );
             }
         }
+        if let (Some(a), Some(card)) = (&c.approval, crate::chat::approval_card(w, h, c)) {
+            // Port of isle's command card: what it does, the command whole, Negar (Esc) and Executar (Enter).
+            let top = y + card.top;
+            self.round(x + 20., top, w - 40., card.height - 6., 14., surface());
+            self.clipped_label(&a.title, x + 34., top + 12., w - 68., 13., Weight::Semibold, white());
+            let rows = card.lines.as_ref().map_or(2, Vec::len) as f32;
+            self.round(x + 34., top + 34., w - 68., 10. + rows * crate::chat::APPROVAL_LINE, 8., Color::from_rgba8(0, 0, 0, 90));
+            match &card.lines {
+                Some(lines) => for (i, line) in lines.iter().enumerate() {
+                    self.label(line, x + 44., top + 39. + i as f32 * crate::chat::APPROVAL_LINE, 12., Weight::Regular, accent_light(0.4));
+                },
+                None => {
+                    self.clipped_label("Comando longo demais para mostrar inteiro.", x + 44., top + 39., w - 88., 12., Weight::Regular, red());
+                    self.clipped_label("Negue e peça um comando menor.", x + 44., top + 39. + crate::chat::APPROVAL_LINE, w - 88., 12., Weight::Regular, muted());
+                }
+            }
+            for hb in crate::chat::hitboxes(x, y, w, h, c) {
+                match hb.action {
+                    UiAction::AiDeny => {
+                        self.round(hb.x, hb.y, hb.w, hb.h, hb.h / 2., Color::from_rgba8(255, 255, 255, 23));
+                        self.label("Negar", hb.x + 12., centered_top(hb.y, hb.h, 12.), 12., Weight::Semibold, white());
+                        self.label_right("esc", hb.x + hb.w - 11., centered_top(hb.y, hb.h, 10.), Weight::Regular, muted());
+                    }
+                    UiAction::AiRun => {
+                        self.round(hb.x, hb.y, hb.w, hb.h, hb.h / 2., accent());
+                        self.label("Executar", hb.x + 12., centered_top(hb.y, hb.h, 12.), 12., Weight::Semibold, ink());
+                        self.label_right("↵", hb.x + hb.w - 11., centered_top(hb.y, hb.h, 12.), Weight::Semibold, ink());
+                    }
+                    _ => {}
+                }
+            }
+        }
         if crate::chat::ideas_shown(c) {
             return;
         }
+        let waiting = c.approval.is_some();
         let status = if let Some(e) = &c.error {
             e.as_str()
+        } else if waiting {
+            ""
         } else if c.busy {
             "Respondendo…"
         } else {
@@ -248,7 +285,7 @@ impl PillRenderer {
         if c.busy {
             self.round(x + 20., y + h - 55., w - 86., 38., 12., surface());
             self.label(
-                "Sua IA está trabalhando…",
+                if waiting { "Aguardando sua aprovação · Enter executa · Esc nega" } else { "Sua IA está trabalhando…" },
                 x + 33.,
                 y + h - 44.,
                 12.,
