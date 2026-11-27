@@ -767,6 +767,16 @@ fn phase9_shots(dir: &str, scale: f32, base: &IslandState, cfg: &IsleConfig) {
         ];
         let (pw, ph, pr) = isle_render::layout::PANEL;
         save_shot(dir, scale, "header-usage", &head, &settled(pw, ph, pr), cfg);
+        // A long date (with the year) and every tab on, on the control center.
+        let mut crowded = head.clone();
+        crowded.mode = PillMode::Expanded(TabPage::ControlCenter);
+        crowded.date_text = "sex 27 nov 2026".into();
+        crowded.modules.clipboard = true;
+        crowded.modules.shelf = true;
+        crowded.modules.usb = true;
+        crowded.modules.downloads = true;
+        crowded.ui.header_usage = 0;
+        save_shot(dir, scale, "header-crowded", &crowded, &settled(pw, ph, pr), cfg);
     }
     // A full notch, the clock first in the list: side by side, then with the clock in the middle.
     {

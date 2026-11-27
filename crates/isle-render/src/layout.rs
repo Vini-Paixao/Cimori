@@ -110,7 +110,9 @@ pub fn navigation(left: f32, top: f32, right: f32, m: &isle_core::config::Module
     let name = open.filter(|t| tabs.contains(t)).map_or(0., |t| crate::pages::BAR_TEXT.with(|text| text.width(t.label(), 13., crate::text::Weight::Semibold)) + 6.);
     let width = |pad: f32, name: f32| tabs.len() as f32 * (16. + pad * 2. + 2.) + name;
     let room = right - (left + 20.);
-    let (pad, name) = [(10., name), (7., name), (7., 0.), (5., 0.), (3., 0.)].into_iter().find(|(p, n)| width(*p, *n) <= room).unwrap_or((3., 0.));
+    // Still too many: the icons closer, down to touching, never past `right`.
+    let squeezed = ((room / tabs.len().max(1) as f32 - 18.) / 2.).clamp(0., 3.);
+    let (pad, name) = [(10., name), (7., name), (7., 0.), (5., 0.), (3., 0.)].into_iter().find(|(p, n)| width(*p, *n) <= room).unwrap_or((squeezed, 0.));
     let mut x = left + 20.;
     tabs.into_iter().map(|t| {
         let tw = 16. + pad * 2. + if Some(t) == open { name } else { 0. };
@@ -129,10 +131,9 @@ pub fn open_tab(s: &IslandState) -> Option<TabPage> {
 }
 /// The header's right side (port of ExpandedView._buildHeader's status, isle), right to left: Cimori's
 /// collapse arrow, the gear, the time in bold, the date, the usage rings, the mascot (the assistant),
-/// the music's bars while something plays, and "Editar" on the control center. The tabs take what is
-/// left of the row (`navigation` up to `start`).
+/// the music's bars while something plays. The tabs take what is left of the row (`navigation` up to
+/// `start`).
 pub struct Header {
-    pub edit: Option<HitBox>,
     pub bars: Option<HitBox>,
     pub mascot: Option<HitBox>,
     /// Each with the provider's id ("claude", "codex") and its session's percent.
@@ -173,13 +174,7 @@ pub fn header(left: f32, top: f32, w: f32, s: &IslandState) -> Header {
         let mascot = s.modules.ai.then(|| { x -= 32.; at(x, 30., A::AiOpen) });
         let playing = s.modules.media && s.media.as_ref().is_some_and(|m| m.playing);
         let bars = playing.then(|| { x -= 28.; at(x, 24., A::SwitchTab(TabPage::Media)) });
-        let edit = (s.mode == PillMode::Expanded(TabPage::ControlCenter)).then(|| {
-            let label = if s.control_editing { "Concluído" } else { "Editar" };
-            let bw = text.width(label, 12., crate::text::Weight::Medium) + 22.;
-            x -= bw + 8.;
-            HitBox { x, y: y + 3., w: bw, h: HEAD_H - 6., action: A::EditControls }
-        });
-        Header { edit, bars, mascot, rings, date_x, time_x, gear, collapse, start: x - 8. }
+        Header { bars, mascot, rings, date_x, time_x, gear, collapse, start: x - 8. }
     })
 }
 /// Port of UsagePage._content (isle), every provider stacked: the head (20), 14 apart, then each limit
@@ -198,7 +193,7 @@ pub fn expanded_hitboxes(canvas: f32, w: f32, h: f32, top: f32, s: &IslandState)
     let left = (canvas - w) * 0.5;
     let head = header(left, top, w, s);
     let mut boxes = navigation(left, top, head.start, &s.modules, open_tab(s));
-    boxes.extend(head.edit.into_iter().chain(head.bars).chain(head.mascot));
+    boxes.extend(head.bars.into_iter().chain(head.mascot));
     boxes.extend(head.rings.into_iter().map(|r| r.0));
     boxes.push(head.collapse);
     boxes.push(head.gear);
@@ -241,7 +236,12 @@ pub fn expanded_hitboxes(canvas: f32, w: f32, h: f32, top: f32, s: &IslandState)
             }
             let n = s.control_tiles.len();
             let tiles_end = control_tiles_end(n);
+            // Port of ControlPanel's Edit button (mac-island 3.1.1), down in the center: on the
+            // "Volume por aplicativo" row; "Concluído" on "Adicionar controles" while editing.
+            let label = if s.control_editing { "Concluído" } else { "Editar" };
+            let ew = crate::pages::BAR_TEXT.with(|t| t.width(label, 12., crate::text::Weight::Medium)) + 22.;
             if s.control_editing {
+                add(w - 20.0 - ew, control_add_top(n) - 1.0, ew, 24.0, UiAction::EditControls);
                 let top = control_add_top(n) + 30.0;
                 let col = (w - 40.0) / 3.0;
                 for (j, t) in missing_controls(s).into_iter().enumerate() {
@@ -280,6 +280,7 @@ pub fn expanded_hitboxes(canvas: f32, w: f32, h: f32, top: f32, s: &IslandState)
             if s.control_mixer {
                 add(w - 54.0, by, 34.0, 24.0, UiAction::OpenMixer);
             }
+            add(if s.control_mixer { w - 62.0 - ew } else { w - 20.0 - ew }, by, ew, 24.0, UiAction::EditControls);
             let capacity = if s.control_mixer { ((h - 15.0 - by - 30.0) / 27.0).floor().max(0.0) as usize } else { 0 };
             for i in 0..s.app_volumes.len().min(capacity) {
                 let y = by + 28.0 + i as f32 * 27.0;

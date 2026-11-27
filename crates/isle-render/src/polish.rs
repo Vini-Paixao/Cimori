@@ -180,13 +180,6 @@ impl PillRenderer {
         let head = crate::layout::header(x, y, w, state);
         let row_y = y + crate::layout::HEAD_Y;
         let mid = row_y + crate::layout::HEAD_H / 2.;
-        if let Some(e) = &head.edit {
-            // Port of ControlPanel's Edit button (mac-island 3.1.1); "Concluído" while editing.
-            let editing = state.control_editing;
-            self.round(e.x, e.y, e.w, e.h, e.h / 2., if editing { tint() } else { surface() });
-            let label = if editing { "Concluído" } else { "Editar" };
-            self.centered_label(label, e.x + e.w / 2., centered_top(e.y, e.h, 12.), 12., Weight::Medium, if editing { accent() } else { white() });
-        }
         if let Some(b) = &head.bars {
             // mac-island's playing bars: four, rising and falling out of step.
             let t = state.now_ms as f32 / 1000.;
