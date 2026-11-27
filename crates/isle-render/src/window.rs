@@ -130,7 +130,9 @@ pub struct MonitorPlace {
 pub fn covers_monitor(window: (i32, i32, i32, i32), monitor: (i32, i32, i32, i32), zoomed: bool, caption: bool, busy: bool,
 ) -> bool {
     let ((l, t, r, b), (ml, mt, mr, mb)) = (window, monitor);
-    if l > ml || t > mt || r < mr || b < mb {
+    // Maximized is never full screen: with the taskbar auto-hidden, a frameless maximized window (Claude,
+    // VS Code, any Electron app) is exactly the screen. Browsers and games restore before going full screen.
+    if zoomed || l > ml || t > mt || r < mr || b < mb {
         return false;
     }
     if window == monitor {
@@ -1044,11 +1046,14 @@ mod win {
                 let front = if !kept && (maximized || !self.hide_apps.is_empty()) { unsafe { maximized_on(&w.place) } } else { None };
                 let hide = (!stay && unsafe { full_screen_on(&w.place) })
                     || front.is_some_and(|h| maximized || unsafe { exe_path(h) }.is_some_and(|p| listed_app(&self.hide_apps, &p)));
-                if hide != w.hidden {
+                let hwnd = HWND(w.hwnd as *mut _);
+                // Hidden or minimized from outside (Win+D, a screen capture tool): shown again, not left gone
+                // until the settings recreate the windows.
+                let lost = !hide && unsafe { !IsWindowVisible(hwnd).as_bool() || IsIconic(hwnd).as_bool() };
+                if hide != w.hidden || lost {
                     w.hidden = hide;
                     w.glass.restore_visibility(!hide);
-                    unsafe { let _ = ShowWindow(HWND(w.hwnd as *mut _), if hide { SW_HIDE } else { SW_SHOWNOACTIVATE },
-                        ); }
+                    unsafe { let _ = ShowWindow(hwnd, if hide { SW_HIDE } else { SW_SHOWNOACTIVATE }); }
                 }
             }
         }
@@ -1341,9 +1346,12 @@ mod tests {
     fn full_screen_means_covering_the_monitor_like_the_mod() {
         let monitor = (0, 0, 1920, 1080);
         // Borderless game or browser video: exactly the screen, whatever its style.
-        assert!(covers_monitor((0, 0, 1920, 1080), monitor, true, true, false));
-        // A maximized window spills past the edges: not full screen.
+        assert!(covers_monitor((0, 0, 1920, 1080), monitor, false, true, false));
+        assert!(covers_monitor((0, 0, 1920, 1080), monitor, false, false, false));
+        // Maximized is not full screen: spilling past the edges, or (taskbar auto-hidden, frameless) exactly it.
         assert!(!covers_monitor((-8, -8, 1928, 1088), monitor, true, true, false));
+        assert!(!covers_monitor((0, 0, 1920, 1080), monitor, true, false, false));
+        assert!(!covers_monitor((0, 0, 1920, 1080), monitor, true, false, true));
         // Captioned window stretched over it: only when Windows says an app is busy full screen.
         assert!(!covers_monitor((-1, -1, 1921, 1081), monitor, false, true, false));
         assert!(covers_monitor((-1, -1, 1921, 1081), monitor, false, true, true));
