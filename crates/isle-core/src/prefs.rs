@@ -2,7 +2,7 @@
 //! Every option of the settings window, declared once (Mac Island & Dock's kIslandPrefs).
 //! The window, its search and the tests read this table; texts are Portuguese, all here.
 use crate::config::{AnimationLevel, BarItem, DateOrder, IsleConfig, PinnedTrayApp, WeatherConfig};
-use crate::state::ControlTile;
+use crate::state::{ControlTile, TabPage};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SettingsTab {
@@ -300,6 +300,11 @@ macro_rules! module {
     };
 }
 
+/// The panel's tabs in the user's order.
+fn shown_tabs(c: &IsleConfig) -> impl Iterator<Item = TabPage> + '_ {
+    c.modules.order.into_iter().filter(|t| c.modules.shows(*t))
+}
+
 fn on_ai(c: &IsleConfig) -> bool { c.modules.ai }
 fn on_control(c: &IsleConfig) -> bool { c.modules.control }
 fn on_agenda(c: &IsleConfig) -> bool { c.modules.agenda }
@@ -324,6 +329,15 @@ const BAR_CHIPS: &[(&str, &str)] = &[
     ("tray", "Bandeja"),
     ("power", "Desligar"),
 ];
+/// The panel's tabs, in `TabPage::NAV`'s order, by the names they show.
+const TAB_CHIPS: &[(&str, &str)] = &[
+    ("media", "Música"), ("notifications", "Avisos"), ("timer", "Foco"), ("shelf", "Prateleira"),
+    ("clipboard", "Histórico"), ("downloads", "Downloads"), ("agenda", "Agenda"), ("weather", "Clima"),
+    ("usb", "USB"), ("control", "Controle"), ("tray", "Bandeja"), ("ai", "Uso"),
+];
+pub fn tab_key(t: TabPage) -> &'static str {
+    TabPage::NAV.iter().position(|n| *n == t).map_or("", |i| TAB_CHIPS[i].0)
+}
 const TILE_CHIPS: &[(&str, &str)] = &[
     ("wifi", "Wi-Fi"),
     ("bluetooth", "Bluetooth"),
@@ -394,6 +408,7 @@ pub fn chip_choices(id: &str) -> &'static [(&'static str, &'static str)] {
         "bar_items" => BAR_CHIPS,
         "control_tiles" => TILE_CHIPS,
         "notch_items" => BAR_CHIPS,
+        "modules.order" => TAB_CHIPS,
         _ => &[],
     }
 }
@@ -523,6 +538,22 @@ static PREFS: &[Pref] = &[
     slider!("gap_px", Look, "Tamanho", "Distância do topo", "", "espaço margem topo", 0.0..40.0 step 1.0 "px", gap_px / 1 as i32, always),
     switch!("ui.tooltips", Look, "Interação", "Dicas sob os ícones", "", "dicas tooltip hover", ui.tooltips, always),
     switch!("ui.hover_highlight", Look, "Interação", "Destacar controles sob o mouse", "", "realce hover", ui.hover_highlight, always),
+    // The chips are the tabs whose module is on; dragging them reorders those, the hidden ones
+    // keep their places. Adding or taking one out is the modules' job: a list of other tabs is ignored.
+    Pref { id: "modules.order", tab: SettingsTab::Look, card: "Painel aberto", name: "Ordem das abas",
+        desc: "Arraste para mudar a ordem dos ícones no topo do painel", words: "ordem abas ícones topo cabeçalho painel reordenar",
+        kind: PrefKind::Chips,
+        get: |c| PrefValue::List(shown_tabs(c).map(|t| tab_key(t).to_string()).collect()),
+        set: |c, v| if let PrefValue::List(names) = v {
+            let tabs: Vec<TabPage> = names.iter().filter_map(|n| TabPage::NAV.into_iter().find(|t| tab_key(*t) == n)).collect();
+            let shown: Vec<_> = shown_tabs(c).collect();
+            if tabs.len() != shown.len() || !shown.iter().all(|t| tabs.contains(t)) { return; }
+            let (m, mut next) = (c.modules, tabs.into_iter());
+            for slot in c.modules.order.iter_mut().filter(|t| m.shows(**t)) {
+                *slot = next.next().unwrap_or(*slot);
+            }
+        },
+        enabled: always, restart: false },
     switch!("ui.uniform_panels", Look, "Tamanho", "Painéis na largura da ilha", "Painéis podem acompanhar uma pílula mais larga", "painel largura", ui.uniform_panels, always),
     slider!("ui.pill_height_pct", Look, "Tamanho", "Altura da pílula fechada", "Em % do normal", "pílula altura", 70.0..130.0 step 5.0 "%", ui.pill_height_pct / 1 as u32, always),
     slider!("notch_curve", Look, "Tamanho", "Arredondamento", "", "cantos curva", 0.0..100.0 step 1.0 "%", notch_curve / 1 as u32, always),

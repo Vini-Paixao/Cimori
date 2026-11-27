@@ -124,6 +124,8 @@ pub fn chip_items(pref: &str, cfg: &IsleConfig, view: &SettingsView) -> Vec<(Str
         return choices.iter().map(|(k, l)| (k.clone(), l.clone(), current.contains(k))).collect();
     }
     let mut out: Vec<_> = current.iter().map(|k| (k.clone(), label(k), true)).collect();
+    // Only reordered: the chips that are in, nothing to add.
+    if !closable(pref) { return out; }
     out.extend(choices.iter().filter(|(k, _)| !current.contains(k)).map(|(k, l)| (k.clone(), l.clone(), false)));
     out
 }
@@ -147,6 +149,12 @@ fn flow(text: &Text, items: &[(String, String, bool)], width: f32, ordered: bool
 /// Chips that are dragged into an order; the others (apps turned on or off) are only toggled.
 pub fn ordered(pref: &str) -> bool {
     !matches!(pref, "muted_apps" | "hide_apps" | "ai_codex_model" | "ai_opencode_model")
+}
+
+/// Ordered chips with a ✕ to take one out, and the others after to add; the tabs' order only moves its
+/// chips (the modules add and take tabs out).
+pub fn closable(pref: &str) -> bool {
+    ordered(pref) && pref != "modules.order"
 }
 
 /// Choices too many for a segmented control, shown as a list of rows (the icon packs, the opening tab).
@@ -206,7 +214,7 @@ fn row_height(p: &'static Pref, w: f32, cfg: &IsleConfig, view: &SettingsView, t
         PrefKind::Choice(options) if listed(p.id) => options.len() as f32*34.+6.,
         PrefKind::Chips => {
             let items = chip_items(p.id, cfg, view);
-            let lines = flow(text, &items, w, ordered(p.id)).iter().map(|f| f.1).max().map_or(0, |l| l + 1);
+            let lines = flow(text, &items, w, closable(p.id)).iter().map(|f| f.1).max().map_or(0, |l| l + 1);
             lines as f32 * CHIP_LINE + 6.0
         }
         PrefKind::Monitors if p.id == "monitors" || p.id == "main_monitor" => MAP_H + 8.0,
@@ -361,8 +369,11 @@ fn push(hits: &mut Vec<Hit>, hit: Hit, top: f32, bottom: f32) {
 #[allow(clippy::too_many_arguments)]
 fn chip_hits(hits: &mut Vec<Hit>, pref: &'static str, key: &str, on: bool, ordered: bool, x: f32, y: f32, w: f32, index: usize, top: f32, bottom: f32) {
     if on && ordered {
-        push(hits, Hit { x, y, w: w - 16.0, h: CHIP_H, action: SettingsAction::ChipGrab(pref, index) }, top, bottom);
-        push(hits, Hit { x: x + w - 16.0, y, w: 16.0, h: CHIP_H, action: SettingsAction::ChipToggle(pref, key.to_string()) }, top, bottom);
+        let close = if closable(pref) { 16.0 } else { 0.0 };
+        push(hits, Hit { x, y, w: w - close, h: CHIP_H, action: SettingsAction::ChipGrab(pref, index) }, top, bottom);
+        if close > 0.0 {
+            push(hits, Hit { x: x + w - 16.0, y, w: 16.0, h: CHIP_H, action: SettingsAction::ChipToggle(pref, key.to_string()) }, top, bottom);
+        }
     } else {
         push(hits, Hit { x, y, w, h: CHIP_H, action: SettingsAction::ChipToggle(pref, key.to_string()) }, top, bottom);
     }
@@ -486,7 +497,7 @@ fn row_hits(hits: &mut Vec<Hit>, row: &RowBox, cfg: &IsleConfig, view: &Settings
         PrefKind::Chips => {
             let items = chip_items(id, cfg, view);
             let ord = ordered(id);
-            for (n, ((key, _, on), (dx, line, w))) in items.iter().zip(flow(text, &items, row.w, ord)).enumerate() {
+            for (n, ((key, _, on), (dx, line, w))) in items.iter().zip(flow(text, &items, row.w, closable(id))).enumerate() {
                 let index = items[..n].iter().filter(|i| i.2).count();
                 chip_hits(hits, id, key, *on, ord, cx + dx, cy + line as f32 * CHIP_LINE, w, index, top, bottom);
             }

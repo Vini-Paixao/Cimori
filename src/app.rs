@@ -1689,6 +1689,8 @@ impl IsleApp {
             if self.config.ui.uniform_panels {
                 w = w.max(isle_render::pages::compact_tray_width(&self.state)).min(aw.max(320.));
             }
+            // Wide enough for the header's tabs and status side by side, as far as the screen allows.
+            w = w.max(isle_render::layout::header_room(&self.state).min(aw.max(320.)));
             let radius = r * self.config.notch_curve as f32 / 75.0;
             island.morph((w, h, radius));
             let max_scroll = (isle_render::layout::content_height(tab, &self.state) - h).max(0.);
@@ -2771,6 +2773,20 @@ END:VCALENDAR");
     }
 
     #[test]
+    fn music_bars_on_the_open_header_get_frames_while_it_plays() {
+        let mut app = IsleApp::new(IsleConfig::default());
+        // After `new`, which sets the config's level ("System": off on the CI's Windows Server).
+        isle_render::window::set_animation_level(isle_core::config::AnimationLevel::On);
+        app.islands[0].mode = PillMode::Expanded(TabPage::ControlCenter);
+        app.state.media = Some(isle_core::state::MediaInfo { artwork: None, title: "a".into(), artist: "b".into(),
+            playing: true, position_ms: 0, duration_ms: 200_000, sampled_at_ms: 0 });
+        let now = Instant::now();
+        assert!(app.sleep_for(now, 1_000_000) <= Duration::from_millis(50));
+        app.state.media.as_mut().unwrap().playing = false;
+        assert!(app.sleep_for(now, 1_000_000) > Duration::from_millis(50));
+    }
+
+    #[test]
     fn pomodoro_countdown_follows_wall_clock_not_tick_count() {
         let mut app = IsleApp::new(IsleConfig::default());
         app.pomodoro.start(1_000_000 * 1000);
@@ -2879,7 +2895,7 @@ END:VCALENDAR");
         // The mouse on the second monitor's island opens that one only.
         app.apply_input(UiInput::Hover { window: 1, inside: true,
         }).unwrap();
-        app.apply_input(UiInput::Click { window: 1, x: 290.0, y: 20.0,
+        app.apply_input(UiInput::Click { window: 1, x: CANVAS_MAX_WIDTH as f32 / 2.0 - 70.0, y: 20.0,
         }).unwrap();
         assert!(matches!(app.islands[1].mode, PillMode::Expanded(_)));
         assert_eq!(app.islands[0].mode, PillMode::CompactBar);
