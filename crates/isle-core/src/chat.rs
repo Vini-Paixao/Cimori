@@ -26,16 +26,16 @@ pub struct Approval {
 pub const COMMAND_MAX_CHARS: usize = 600;
 pub const COMMAND_MAX_LINES: usize = 8;
 
-/// Whether `command` can be shown whole and plainly, and so be run: not too long, and no control,
-/// zero-width or direction-changing characters that would hide part of it on the card.
+/// Whether `command` can be shown whole and plainly, and so be run: not too long, and only characters
+/// that are seen as they are (an allowlist): printable ASCII, line breaks and tabs, and Latin letters
+/// with accents (a folder like C:\Users\João). Anything else (invisible, direction-changing, look-alike
+/// letters from other scripts) is never run.
 pub fn showable(command: &str) -> bool {
-    let hidden = |c: char| (c.is_control() && c != '\n' && c != '\t')
-        || matches!(c, '\u{00AD}' | '\u{034F}' | '\u{061C}' | '\u{180E}' | '\u{200B}'..='\u{200F}'
-            | '\u{202A}'..='\u{202E}' | '\u{2060}'..='\u{206F}' | '\u{FE00}'..='\u{FE0F}' | '\u{FEFF}');
+    let plain = |c: char| matches!(c, ' '..='~' | '\n' | '\t' | '\u{00A1}'..='\u{00AC}' | '\u{00AE}'..='\u{017F}');
     !command.trim().is_empty()
         && command.chars().count() <= COMMAND_MAX_CHARS
         && command.lines().count() <= COMMAND_MAX_LINES
-        && !command.chars().any(hidden)
+        && command.chars().all(plain)
 }
 
 /// A model a provider's CLI offers: the id it takes and the name people see.
@@ -154,6 +154,11 @@ mod tests {
         assert!(!showable("echo ok\u{200B}; rm -r C:/"), "zero width");
         assert!(!showable("echo \u{202E}fdp.exe"), "right-to-left override");
         assert!(!showable("echo ok\rRemove-Item C:/x"), "a carriage return hides the start");
+        assert!(showable(r"cd C:\Users\João; ls"), "accented folder names");
+        assert!(!showable("echo \u{3164}"), "Hangul filler (blank)");
+        assert!(!showable("echo \u{2800}"), "braille blank");
+        assert!(!showable("echo \u{0430}dmin"), "Cyrillic look-alike a");
+        assert!(!showable("echo ok\u{00AD}"), "soft hyphen");
     }
     #[test]
     fn blank_busy_and_history_are_bounded() {

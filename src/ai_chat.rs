@@ -111,9 +111,11 @@ impl IsleApp {
     }
     /// Executar or Negar on the command the assistant asks to run.
     fn answer_command(&mut self, run: bool) {
-        // Executar only for a command the card shows whole (button, Enter or any other way here).
-        let (w, h, _) = isle_render::layout::PANEL;
-        if run && !isle_render::chat::approval_card(w, h, &self.state.chat).is_some_and(|card| card.lines.is_some()) { return; }
+        // Executar only for a command the card shows whole (button, Enter or any other way here), at the
+        // size the card is drawn: the island showing the chat, as it settles.
+        if run && !self.islands.iter().filter(|i| i.mode == PillMode::Expanded(TabPage::AiHub)).any(|i| {
+            isle_render::chat::approval_card(i.geom.width.target, i.geom.height.target, &self.state.chat).is_some_and(|card| card.lines.is_some())
+        }) { return; }
         if self.state.chat.approval.take().is_none() { return; }
         if let Some(tx) = &self.chat_tx {
             let _ = tx.send(Command::Approve { generation: self.state.chat.generation, run });
@@ -237,12 +239,8 @@ impl IsleApp {
         }
         match ch {
             // A command waiting: Enter runs it, Esc denies it (isle's card).
-            // Enter runs only what Executar would: a command the card shows whole.
-            '\r' if self.state.chat.approval.is_some() => {
-                let (w, h, _) = isle_render::layout::PANEL;
-                let whole = isle_render::chat::approval_card(w, h, &self.state.chat).is_some_and(|card| card.lines.is_some());
-                if whole { self.answer_command(true) }
-            }
+            // Enter runs only what Executar would (answer_command checks the card).
+            '\r' if self.state.chat.approval.is_some() => self.answer_command(true),
             '\u{1b}' if self.state.chat.approval.is_some() => self.answer_command(false),
             '\u{1b}' => self.close_ai_input(),
             _ if self.state.chat.busy => {}
