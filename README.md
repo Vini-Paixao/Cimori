@@ -117,6 +117,16 @@ cargo test --workspace
 .\scripts\release.ps1          # dist\: zip portátil e, com o Inno Setup 6, o instalador
 ```
 
+## Publicar uma versão
+
+Depois que a CI passa na `main`, o GitHub Actions publica o instalador Windows x64, o ZIP portátil e
+`SHA256SUMS.txt`. A versão avança um patch a partir da maior tag publicada (por exemplo, de `1.0.2`
+para `1.0.3`). Para iniciar uma nova série, abra **Actions → CI → Run workflow**, selecione `main`
+e informe uma versão maior, como `2.0.0`. Os próximos merges seguem com `2.0.1`, `2.0.2` etc.
+
+Para recompilar uma versão publicada, faça checkout da tag e passe a versão ao script. Por exemplo,
+na tag `v2.0.0`, execute `.\scripts\release.ps1 -Version 2.0.0 -RequireInstaller` com Inno Setup 6.
+
 ## Créditos e licenças
 
 - **Cimori** — Marcus Paixão, [GPL-3.0](LICENSE).
