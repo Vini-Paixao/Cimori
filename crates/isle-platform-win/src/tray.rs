@@ -115,5 +115,8 @@ pub fn inspect(pins: &[PinnedTrayApp]) -> anyhow::Result<TraySnapshot> {
 
 #[cfg(windows)]
 mod win;
+/// A program's name as Windows shows it (its FileDescription), else its file name.
+#[cfg(windows)]
+pub use win::program_name;
 #[cfg(windows)]
 mod bridge;

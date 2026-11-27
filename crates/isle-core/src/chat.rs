@@ -13,6 +13,38 @@ pub struct Message {
     pub text: String,
 }
 
+/// A command the assistant asks to run on this computer: shown with Executar and Negar (isle's Run/Deny).
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Approval {
+    /// What it does, in the user's words ("Instalar o Node pelo nvm").
+    pub title: String,
+    /// The PowerShell command, shown whole.
+    pub command: String,
+}
+
+/// The longest command the assistant may run: the card shows it whole (see `showable`).
+pub const COMMAND_MAX_CHARS: usize = 600;
+pub const COMMAND_MAX_LINES: usize = 8;
+
+/// Whether `command` can be shown whole and plainly, and so be run: not too long, and only characters
+/// that are seen as they are (an allowlist): printable ASCII, line breaks and tabs, and Latin letters
+/// with accents (a folder like C:\Users\João). Anything else (invisible, direction-changing, look-alike
+/// letters from other scripts) is never run.
+pub fn showable(command: &str) -> bool {
+    let plain = |c: char| matches!(c, ' '..='~' | '\n' | '\t' | '\u{00A1}'..='\u{00AC}' | '\u{00AE}'..='\u{017F}');
+    !command.trim().is_empty()
+        && command.chars().count() <= COMMAND_MAX_CHARS
+        && command.lines().count() <= COMMAND_MAX_LINES
+        && command.chars().all(plain)
+}
+
+/// A model a provider's CLI offers: the id it takes and the name people see.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct ModelChoice {
+    pub id: String,
+    pub name: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Chat {
     pub open: bool,
@@ -27,6 +59,10 @@ pub struct Chat {
     /// The input's caret while it has the keyboard: whether this frame draws it. None when unfocused.
     #[serde(skip)]
     pub caret: Option<bool>,
+    /// A command waiting for Executar or Negar.
+    pub approval: Option<Approval>,
+    /// The model the open provider answers with ("Opus"); empty: the CLI's own default.
+    pub model_label: String,
 }
 impl Default for Chat {
     fn default() -> Self {
@@ -40,6 +76,8 @@ impl Default for Chat {
             error: None,
             scroll: 0,
             caret: None,
+            approval: None,
+            model_label: String::new(),
         }
     }
 }
@@ -81,6 +119,7 @@ impl Chat {
         self.error = error;
         if done {
             self.busy = false;
+            self.approval = None;
         }
     }
     pub fn reset(&mut self, provider: AiProviderKind) {
@@ -88,6 +127,7 @@ impl Chat {
             open: self.open,
             generation: self.generation.wrapping_add(1),
             provider,
+            model_label: std::mem::take(&mut self.model_label),
             ..Self::default()
         };
     }
@@ -104,6 +144,22 @@ pub fn provider_name(provider: AiProviderKind) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn only_plain_whole_commands_can_run() {
+        assert!(showable("node -v"));
+        assert!(showable("winget install -e --id CoreyButler.NVMforWindows\nnvm install lts"));
+        assert!(!showable(""));
+        assert!(!showable(&"x".repeat(COMMAND_MAX_CHARS + 1)));
+        assert!(!showable(&"echo 1\n".repeat(COMMAND_MAX_LINES + 1)));
+        assert!(!showable("echo ok\u{200B}; rm -r C:/"), "zero width");
+        assert!(!showable("echo \u{202E}fdp.exe"), "right-to-left override");
+        assert!(!showable("echo ok\rRemove-Item C:/x"), "a carriage return hides the start");
+        assert!(showable(r"cd C:\Users\João; ls"), "accented folder names");
+        assert!(!showable("echo \u{3164}"), "Hangul filler (blank)");
+        assert!(!showable("echo \u{2800}"), "braille blank");
+        assert!(!showable("echo \u{0430}dmin"), "Cyrillic look-alike a");
+        assert!(!showable("echo ok\u{00AD}"), "soft hyphen");
+    }
     #[test]
     fn blank_busy_and_history_are_bounded() {
         let mut c = Chat::default();

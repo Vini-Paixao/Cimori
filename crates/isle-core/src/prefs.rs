@@ -398,6 +398,17 @@ pub fn chip_choices(id: &str) -> &'static [(&'static str, &'static str)] {
     }
 }
 
+/// A model row's chips: one marked at most (the chosen model), none for the CLI's default.
+fn one_model(model: &str) -> PrefValue {
+    PrefValue::List(if model.is_empty() { vec![] } else { vec![model.to_owned()] })
+}
+/// A chip touched: the one added (the last) is the model now; the marked one touched again, the default.
+fn pick_model(slot: &mut String, v: PrefValue) {
+    if let PrefValue::List(list) = v {
+        *slot = list.into_iter().rfind(|m| *m != *slot).unwrap_or_default();
+    }
+}
+
 fn text_opt(v: &Option<String>) -> PrefValue {
     PrefValue::Text(v.clone().unwrap_or_default())
 }
@@ -474,7 +485,7 @@ static PREFS: &[Pref] = &[
         },
         enabled: always, restart: false },
     // Port of IslandPref::ClockCenter (mac-island 3.1.1).
-    switch!("ui.clock_center", Bar, "Itens", "Relógio no meio", "Itens antes dele à esquerda, depois à direita", "relógio centro meio centralizar alinhar", ui.clock_center, always),
+    switch!("ui.clock_center", Bar, "Itens", "Relógio no meio", "Os outros itens se reorganizam dos dois lados dele, na ordem da lista", "relógio centro meio centralizar alinhar", ui.clock_center, always),
     switch!("bar_quota_strip", Bar, "Itens", "Barras de cota da IA", "Embaixo da pílula", "uso ia claude codex limite", bar_quota_strip, always),
     Pref { id: "clock_24h", tab: SettingsTab::Bar, card: "Relógio", name: "Formato", desc: "", words: "relógio hora am pm",
         kind: PrefKind::Choice(&["24 h", "12 h"]),
@@ -539,8 +550,14 @@ static PREFS: &[Pref] = &[
         },
         enabled: |c| c.auto_hide, restart: false },
     switch!("hide_maximized", Hiding, "Sumir", "Sumir com janela maximizada",
-        "A ilha some de vez, como em jogos e vídeos em tela cheia, enquanto houver uma janela maximizada no monitor dela, como um navegador com as abas no topo. Nesse tempo, avisos e pedidos de permissão não aparecem",
+        "A ilha some de vez, como em jogos e vídeos em tela cheia, enquanto houver uma janela maximizada no monitor dela, como um navegador com as abas no topo. Os avisos seguem \"Mostrar com a ilha escondida por um app\", em Avisos",
         "esconder sumir maximizada navegador chrome abas tela cheia", hide_maximized, always),
+    Pref { id: "hide_apps", tab: SettingsTab::Hiding, card: "Sumir", name: "Sumir só na frente destes apps",
+        desc: "Toque num app para marcar. A ilha some quando ele é a janela maximizada da frente, como um navegador com as abas no topo; nos outros ela fica. Lista os apps abertos agora",
+        words: "esconder sumir app aplicativo navegador chrome edge abas maximizada", kind: PrefKind::Chips,
+        get: |c| PrefValue::List(c.hide_apps.clone()),
+        set: |c, v| if let PrefValue::List(apps) = v { c.hide_apps = apps },
+        enabled: |c| !c.hide_maximized, restart: false },
     slider!("ui.hide_delay_ms", Hiding, "Recolhimento", "Tempo até recolher", "Depois que o mouse sai", "esconder atraso", 0.2..8.0 step 0.1 "s", ui.hide_delay_ms / 1000 as u32, always),
     slider!("ui.line_expire_secs", Hiding, "Linha minimizada", "Apagar a linha depois de", "Zero mantém a linha visível", "esconder linha", 0.0..600.0 step 5.0 "s", ui.line_expire_secs / 1 as u32, |c| c.auto_hide),
     switch!("ui.line_click", Hiding, "Linha minimizada", "Reabrir a linha com clique", "Passe o mouse para indicar onde clicar", "esconder clicar mouse", ui.line_click, |c| c.auto_hide),
@@ -556,8 +573,26 @@ static PREFS: &[Pref] = &[
         enabled: always, restart: false },
     // IA
     module!("modules.ai", Ai, "Mostrar a IA", ai),
-    Pref { restart: true, ..switch!("ai_claude_enabled", Ai, "Agentes", "Claude Code", "Cotas e chat", "claude anthropic", ai_claude_enabled, on_ai) },
-    Pref { restart: true, ..switch!("ai_codex_enabled", Ai, "Agentes", "Codex", "Cotas e chat", "codex openai", ai_codex_enabled, on_ai) },
+    Pref { id: "ui.header_usage", tab: SettingsTab::Ai, card: "Topo do painel", name: "Uso no topo do painel",
+        desc: "Um anel com a sessão de cada um, ao lado do mascote; clique abre a aba Uso", words: "uso cota anel claude codex topo cabeçalho",
+        kind: PrefKind::Choice(&["Claude", "Codex", "Os dois", "Nenhum"]),
+        get: |c| PrefValue::Index(c.ui.header_usage.min(3) as usize),
+        set: |c, v| if let PrefValue::Index(i) = v { c.ui.header_usage = i.min(3) as u8 },
+        enabled: on_ai, restart: false },
+    switch!("ai_claude_enabled", Ai, "Agentes", "Claude Code", "Cotas na ilha e na aba Uso", "claude anthropic", ai_claude_enabled, on_ai),
+    switch!("ai_codex_enabled", Ai, "Agentes", "Codex", "Cotas na ilha e na aba Uso", "codex openai", ai_codex_enabled, on_ai),
+    Pref { id: "ai_claude_model", tab: SettingsTab::Ai, card: "Modelos do chat", name: "Claude",
+        desc: "O modelo que responde no chat; troque também tocando na aba do Claude no chat", words: "modelo claude opus sonnet haiku chat assistente",
+        kind: PrefKind::Choice(&["Padrão", "Opus", "Sonnet", "Haiku"]),
+        get: |c| PrefValue::Index(["", "opus", "sonnet", "haiku"].iter().position(|m| *m == c.ai_claude_model).unwrap_or(0)),
+        set: |c, v| if let PrefValue::Index(i) = v { c.ai_claude_model = ["", "opus", "sonnet", "haiku"].get(i).copied().unwrap_or("").into() },
+        enabled: on_ai, restart: false },
+    Pref { id: "ai_codex_model", tab: SettingsTab::Ai, card: "Modelos do chat", name: "Codex",
+        desc: "Os modelos que o Codex lista para o seu login; nenhum marcado: o padrão dele", words: "modelo codex gpt chat assistente",
+        kind: PrefKind::Chips, get: |c| one_model(&c.ai_codex_model), set: |c, v| pick_model(&mut c.ai_codex_model, v), enabled: on_ai, restart: false },
+    Pref { id: "ai_opencode_model", tab: SettingsTab::Ai, card: "Modelos do chat", name: "OpenCode Go",
+        desc: "Os modelos do OpenCode Go para a sua chave; nenhum marcado: o primeiro da lista", words: "modelo opencode go chat assistente",
+        kind: PrefKind::Chips, get: |c| one_model(&c.ai_opencode_model), set: |c, v| pick_model(&mut c.ai_opencode_model, v), enabled: on_ai, restart: false },
     Pref { id: "opencode_api_key", tab: SettingsTab::Ai, card: "Agentes", name: "Chave do OpenCode Go", desc: "",
         words: "opencode api chave", kind: PrefKind::Text { secret: true, placeholder: "sk-..." },
         get: |c| text_opt(&c.opencode_api_key), set: |c, v| set_opt(&mut c.opencode_api_key, v), enabled: on_ai, restart: false },
@@ -641,6 +676,9 @@ static PREFS: &[Pref] = &[
     // Avisos
     module!("modules.notifications", Notifications, "Mostrar os avisos", notifications),
     switch!("banners", Notifications, "Banners", "Avisos na pílula", "Um banner quando chega um aviso", "banner notificação", banners, on_notifications),
+    switch!("ui.banner_over_apps", Notifications, "Banners", "Mostrar com a ilha escondida por um app",
+        "Quando a ilha some na frente de uma janela maximizada ou de um app marcado em Esconder, o banner e os pedidos de permissão aparecem mesmo assim. Jogos e vídeos em tela cheia continuam sem",
+        "banner aviso escondida oculta sumir chrome maximizada", ui.banner_over_apps, on_notifications),
     slider!("banner_secs", Notifications, "Banners", "Tempo na tela", "", "banner segundos",
         2.0..30.0 step 1.0 "s", banner_secs / 1 as u32, |c| c.modules.notifications && c.banners),
     Pref { restart: true, ..switch!("notification_icons", Notifications, "Lista", "Ícones dos apps", "", "ícone app", notification_icons, on_notifications) },
@@ -666,8 +704,8 @@ static PREFS: &[Pref] = &[
     switch!("ui.banner_when_hidden", Notifications, "Banners", "Avisar com a pílula minimizada", "", "avisos minimizada", ui.banner_when_hidden, on_notifications),
     // Foco
     module!("modules.timer", Focus, "Mostrar Foco e timers", timer),
-    slider!("pomodoro_focus_secs", Focus, "Pomodoro", "Foco", "", "pomodoro foco", 5.0..90.0 step 5.0 "min", pomodoro_focus_secs / 60 as u32, on_timer),
-    slider!("pomodoro_break_secs", Focus, "Pomodoro", "Pausa", "", "pomodoro pausa", 1.0..30.0 step 1.0 "min", pomodoro_break_secs / 60 as u32, on_timer),
+    slider!("pomodoro_focus_secs", Focus, "Pomodoro", "Foco", "", "pomodoro foco", 5.0..180.0 step 5.0 "min", pomodoro_focus_secs / 60 as u32, on_timer),
+    slider!("pomodoro_break_secs", Focus, "Pomodoro", "Pausa", "", "pomodoro pausa", 1.0..60.0 step 1.0 "min", pomodoro_break_secs / 60 as u32, on_timer),
     slider!("timer_default_secs", Focus, "Timer", "Tempo padrão", "", "timer contagem", 1.0..120.0 step 1.0 "min", timer_default_secs / 60 as u32, on_timer),
     switch!("ui.timer_on_line", Focus, "Timer", "Timer na linha minimizada", "", "timer linha minimizar", ui.timer_on_line, on_timer),
     // Bandeja
@@ -749,7 +787,7 @@ static PREFS: &[Pref] = &[
             c.ui.pill_style = if i == 1 { crate::config::PillStyle::Notch } else { crate::config::PillStyle::Island }
         },
         enabled: always, restart: false },
-    slider!("ui.pill_width", Look, "Tamanho", "Largura da ilha fechada", "Antes do espaço dos outros itens", "pílula entalhe largura",
+    slider!("ui.pill_width", Look, "Tamanho", "Largura mínima da ilha fechada", "Ela cresce com os itens da barra", "pílula entalhe largura",
         160.0..560.0 step 10.0 "px", ui.pill_width / 1 as u32, always),
     Pref { id: "notch_items", tab: SettingsTab::Bar, card: "Itens", name: "No entalhe",
         desc: "O que o entalhe fechado mostra; arraste para mudar a ordem", words: "entalhe notch itens relógio",

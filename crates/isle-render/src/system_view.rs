@@ -143,6 +143,13 @@ impl PillRenderer {
                         if output.is_default { accent() } else { muted() },
                     );
                 }
+                UiAction::EditControls => {
+                    // Port of ControlPanel's Edit button (mac-island 3.1.1); "Concluído" while editing.
+                    let editing = s.control_editing;
+                    self.round(hb.x, hb.y, hb.w, hb.h, hb.h / 2., if editing { tint() } else { surface() });
+                    let label = if editing { "Concluído" } else { "Editar" };
+                    self.centered_label(label, hb.x + hb.w / 2., centered_top(hb.y, hb.h, 12.), 12., Weight::Medium, if editing { accent() } else { white() });
+                }
                 UiAction::OpenMixer => {
                     self.label(
                         "Volume por aplicativo",
@@ -370,10 +377,11 @@ impl PillRenderer {
         h: f32,
         s: &IslandState,
     ) {
+        let body = y + crate::layout::TRAY_DROP;
         self.label(
             "Por perto.",
             x + 20.,
-            y + CONTENT + 4.,
+            body + CONTENT + 4.,
             20.,
             Weight::Medium,
             white(),
@@ -382,7 +390,7 @@ impl PillRenderer {
         if count == 0 {
             self.empty_state(
                 x,
-                y + CONTENT + 37.,
+                body + CONTENT + 37.,
                 w,
                 "Tudo à mão",
                 s.tray_error

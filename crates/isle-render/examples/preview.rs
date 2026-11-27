@@ -381,6 +381,20 @@ fn shots() {
             settled(520.0, 360.0, 26.0),
         ),
         (
+            "ai-approval",
+            {
+                let mut s = chat(isle_core::state::AiProviderKind::ClaudeCode, "", "✓ Ver o que está instalado
+O Node não está instalado. Vou instalar o nvm-windows pelo winget.", true, None);
+                s.chat.model_label = "Opus".into();
+                s.chat.approval = Some(isle_core::chat::Approval {
+                    title: "Instalar o nvm-windows".into(),
+                    command: "winget install -e --id CoreyButler.NVMforWindows --accept-package-agreements --accept-source-agreements".into(),
+                });
+                s
+            },
+            settled(isle_render::layout::PANEL.0, isle_render::layout::PANEL.1, isle_render::layout::PANEL.2),
+        ),
+        (
             "ai-error",
             chat(
                 isle_core::state::AiProviderKind::OpenCodeGo,
@@ -741,6 +755,47 @@ fn phase9_shots(dir: &str, scale: f32, base: &IslandState, cfg: &IsleConfig) {
     save_shot(dir, scale, "compact-clock-center", &centered, &settled(isle_render::pages::compact_tray_width(&centered), 34.0, 17.0), cfg);
     centered.bar = vec![isle_core::config::BarItem::Clock];
     save_shot(dir, scale, "compact-clock-alone", &centered, &settled(isle_render::pages::compact_tray_width(&centered), 34.0, 17.0), cfg);
+    // The open panel's header with both usage rings (Claude 42%, Codex 71%) and a song playing.
+    {
+        let mut head = base.clone();
+        head.mode = PillMode::Expanded(TabPage::Notifications);
+        head.ui.header_usage = 2;
+        let window = |p: f64| isle_core::state::UsageWindow { label: "5 horas".into(), percent: p, resets_at_ms: 0 };
+        head.usage = vec![
+            isle_core::state::UsageProvider { id: "claude".into(), name: "Claude".into(), windows: vec![window(42.)], ..Default::default() },
+            isle_core::state::UsageProvider { id: "codex".into(), name: "Codex".into(), windows: vec![window(71.)], ..Default::default() },
+        ];
+        let (pw, ph, pr) = isle_render::layout::PANEL;
+        save_shot(dir, scale, "header-usage", &head, &settled(pw, ph, pr), cfg);
+        // A long date (with the year) and every tab on, on the control center.
+        let mut crowded = head.clone();
+        crowded.mode = PillMode::Expanded(TabPage::ControlCenter);
+        crowded.date_text = "sex 27 nov 2026".into();
+        crowded.modules.clipboard = true;
+        crowded.modules.shelf = true;
+        crowded.modules.usb = true;
+        crowded.modules.downloads = true;
+        crowded.ui.header_usage = 0;
+        save_shot(dir, scale, "header-crowded", &crowded, &settled(pw, ph, pr), cfg);
+    }
+    // A full notch, the clock first in the list: side by side, then with the clock in the middle.
+    {
+        use isle_core::config::BarItem as B;
+        let mut full = closed.clone();
+        full.weather = isle_core::weather::Weather::from_open_meteo("Rio", include_str!("open-meteo-sample.json")).ok();
+        full.media = Some(isle_core::state::MediaInfo { title: "Ao Vivo - Serie A - 26/11/2026 | Multicanais".into(), playing: true, ..Default::default() });
+        full.ui.media_controls = true;
+        for (name, bar) in [("full", vec![B::Clock, B::Weather, B::Date, B::Media]), ("tray-first", vec![B::Tray, B::Clock, B::Weather, B::Date, B::Media])] {
+            for center in [false, true] {
+                full.bar = bar.clone();
+                full.ui.clock_center = center;
+                let mut c = notch.clone();
+                c.ui.clock_center = center;
+                let w = isle_render::pages::compact_tray_width(&full);
+                save_shot(dir, scale, &format!("notch-{name}-{}", if center { "center" } else { "free" }), &full, &settled(w, 34.0, r), &c);
+            }
+        }
+    }
     let mut center_cfg = cfg.clone();
     center_cfg.ui.clock_center = true;
     center_cfg.bar_items = vec![isle_core::config::BarItem::Date, isle_core::config::BarItem::Clock, isle_core::config::BarItem::Weather];

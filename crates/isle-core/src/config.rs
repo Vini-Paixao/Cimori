@@ -52,6 +52,10 @@ pub struct IsleConfig {
     pub ai_claude_enabled: bool,
     pub ai_codex_enabled: bool,
     pub opencode_api_key: Option<String>,
+    /// The model each provider answers the chat with, as its CLI names it ("opus"); empty: its default.
+    pub ai_claude_model: String,
+    pub ai_codex_model: String,
+    pub ai_opencode_model: String,
     pub hook_port: u16,
 
     // The settings window (docs/superpowers/specs/2026-11-11-configuracoes-design.md).
@@ -78,6 +82,9 @@ pub struct IsleConfig {
     /// Step aside, as for a full-screen app, while a maximized window is on the island's monitor (a browser's
     /// tabs sit where the island is).
     pub hide_maximized: bool,
+    /// Programs (exe file names, lowercase) the island steps aside for while one of them is the maximized
+    /// window in front on its monitor; the others keep it.
+    pub hide_apps: Vec<String>,
     pub modules: Modules,
     pub quota_alerts: bool,
     /// Cimori renews Claude Code's sign-in when it ran out and no Claude Code here renewed it (Claude Code
@@ -210,6 +217,8 @@ pub struct PillOptions {
     pub hover_open: bool,
     pub follow_mouse: bool,
     pub tooltips: bool,
+    /// The usage ring on the open panel's header: 0 Claude, 1 Codex, 2 both, 3 none.
+    pub header_usage: u8,
     pub hover_highlight: bool,
     pub uniform_panels: bool,
     // Before the units in %: still read from an older settings.json (see `migrate_units`), never written.
@@ -220,6 +229,9 @@ pub struct PillOptions {
     #[serde(skip_serializing)]
     pub banner_height: u32,
     pub banner_when_hidden: bool,
+    /// Banners and permission requests come over a maximized window or an app the island steps aside
+    /// for (Esconder); full-screen games and videos still go without.
+    pub banner_over_apps: bool,
     pub media_controls: bool,
     pub media_always: bool,
     pub media_play_only: bool,
@@ -305,12 +317,14 @@ impl Default for PillOptions {
             hover_open: false,
             follow_mouse: false,
             tooltips: true,
+            header_usage: 0,
             hover_highlight: true,
             uniform_panels: false,
             pill_height: 34,
             banner_width: 440,
             banner_height: 64,
             banner_when_hidden: true,
+            banner_over_apps: true,
             media_controls: false,
             media_always: false,
             media_play_only: false,
@@ -418,6 +432,9 @@ impl Default for IsleConfig {
             ai_claude_enabled: true,
             ai_codex_enabled: true,
             opencode_api_key: None,
+            ai_claude_model: String::new(),
+            ai_codex_model: String::new(),
+            ai_opencode_model: String::new(),
             hook_port: 47830,
             bar_items: vec![BarItem::Clock, BarItem::Next, BarItem::Weather, BarItem::Tray],
             bar_quota_strip: true,
@@ -436,6 +453,7 @@ impl Default for IsleConfig {
             animations: AnimationLevel::System,
             over_fullscreen: false,
             hide_maximized: false,
+            hide_apps: Vec::new(),
             modules: Modules::default(),
             quota_alerts: true,
             claude_renew_login: false,

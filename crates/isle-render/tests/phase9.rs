@@ -94,7 +94,7 @@ fn the_power_menu_lays_its_actions_and_confirmation_inside_the_panel() {
     let mine: Vec<_> = boxes.iter().filter(|b| matches!(b.action, UiAction::Power(_) | UiAction::PowerConfirm | UiAction::PowerCancel)).collect();
     assert_eq!(mine.len(), 6 + 2);
     for (i, a) in mine.iter().enumerate() {
-        assert!(a.x >= 80.0 && a.x + a.w <= 640.0 && a.y + a.h <= 6.0 + h, "{a:?}");
+        assert!(a.x >= (720.0 - w) / 2.0 && a.x + a.w <= (720.0 + w) / 2.0 && a.y + a.h <= 6.0 + h, "{a:?}");
         for b in &mine[i + 1..] {
             assert!(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y, "overlap {a:?} {b:?}");
         }
@@ -144,7 +144,7 @@ fn edit_mode_marks_each_control_and_lists_the_rest_without_overlap() {
     assert_eq!(count(|a| matches!(a, UiAction::SetVolume(_) | UiAction::Control(_))), 0, "no sound while editing");
     let adds: Vec<_> = all.iter().filter(|b| matches!(b.action, UiAction::ControlAdd(_) | UiAction::ControlGrab(_))).collect();
     for (i, a) in adds.iter().enumerate() {
-        assert!(a.x >= 80.0 && a.x + a.w <= 640.0 && a.y + a.h <= 6.0 + natural, "{a:?}");
+        assert!(a.x >= (720.0 - w) / 2.0 && a.x + a.w <= (720.0 + w) / 2.0 && a.y + a.h <= 6.0 + natural, "{a:?}");
         for b in &adds[i + 1..] {
             assert!(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y, "overlap {a:?} {b:?}");
         }

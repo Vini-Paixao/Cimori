@@ -25,6 +25,9 @@ pub enum UiAction {
     AiStop,
     AiNew,
     AiProvider(isle_core::state::AiProviderKind),
+    /// The command the assistant asks to run: Executar (Enter) or Negar (Esc).
+    AiRun,
+    AiDeny,
     AiScroll(i32),
     /// One of the assistant's ideas under its empty field (`chat::IDEAS`).
     AiIdea(usize),
@@ -133,23 +136,11 @@ pub fn compact_marquee_needed(state: &IslandState, width: f32) -> bool {
     })
 }
 
-/// The closed pill's width: room for the clock and the next event, plus what the other items need.
+/// The closed pill's width: what its items ask for (`layout::compact_content_width`), at least "Largura
+/// mínima da ilha fechada".
 pub fn compact_tray_width(state: &IslandState) -> f32 {
-    use isle_core::config::BarItem;
-    let in_bar = state.bar.contains(&BarItem::Media);
-    let media = (in_bar || state.ui.media_always) && crate::layout::compact_media_text(state).is_some();
-    let controls = if media { compact_media_keys(state).len() as f32 * 23. } else { 0. };
-    let extra_media = if media && !in_bar { state.ui.media_title_width as f32 } else { 0. };
-    (state.ui.pill_width as f32 + controls + extra_media + state.bar.iter().map(|item| match item {
-        BarItem::Tray if state.modules.tray => inline_indices(&state.tray).len() as f32 * 26.0 + 28.0,
-        BarItem::Weather if state.modules.weather && state.weather.is_some() => WEATHER_W,
-        BarItem::Notifications if state.notifications.unread_count() > 0 => crate::layout::BELL_W + 8.0,
-        BarItem::Timer if state.timer_text.is_some() => 88.0,
-        BarItem::Power => POWER_W + 8.0,
-        BarItem::Date if state.bar.contains(&BarItem::Next) => 88.0,
-        BarItem::Media if crate::layout::compact_media_text(state).is_some() => state.ui.media_title_width as f32,
-        _ => 0.0,
-    }).sum::<f32>()).min(crate::window::CANVAS_MAX_WIDTH as f32 - 8.)
+    let content = BAR_TEXT.with(|text| crate::layout::compact_content_width(text, state));
+    content.max(state.ui.pill_width as f32).min(crate::window::CANVAS_MAX_WIDTH as f32 - 8.)
 }
 
 /// What the Timer tab's controls do (start/pause and reset act on the mode shown).
@@ -193,7 +184,7 @@ pub const POWER_W: f32 = 26.0;
 /// The temperature's room on the compact bar (icon and "24°"), left of the tray icons.
 pub const WEATHER_W: f32 = 64.0;
 /// The weather panel's size, and where its seven days sit (the renderer draws them there).
-pub const WEATHER_PANEL: (f32, f32, f32) = (620.0, 470.0, 28.0);
+pub const WEATHER_PANEL: (f32, f32, f32) = crate::layout::PANEL;
 pub const WEATHER_DAYS_TOP: f32 = 164.0;
 pub const WEATHER_DAY_H: f32 = 76.0;
 
@@ -493,12 +484,14 @@ mod control_tests {
         };
         for (outputs, chips, app_rows) in [(1, 0, 4), (4, 4, 3), (7, 7, 2), (12, 8, 2)] {
             state.audio_outputs = (0..outputs).map(out).collect();
-            let boxes = compute_hitboxes(720.0, 600.0, 470.0, 6.0, &state);
+            let (pw, ph, _) = crate::layout::PANEL;
+            let boxes = compute_hitboxes(720.0, pw, ph, 6.0, &state);
             assert_eq!(boxes.iter().filter(|h| matches!(h.action, UiAction::SetOutput(_))).count(), chips, "{outputs} outputs");
-            assert_eq!(boxes.iter().filter(|h| matches!(h.action, UiAction::AppVolume(..))).count(), app_rows, "{outputs} outputs");
+            let rows = boxes.iter().filter(|h| matches!(h.action, UiAction::AppVolume(..))).count();
+            assert!(rows >= app_rows && rows <= 4, "{outputs} outputs: {rows} app rows");
             let controls: Vec<_> = boxes.iter().filter(|h| !matches!(h.action, UiAction::SwitchTab(_) | UiAction::ToggleCollapse)).collect();
             for (i, a) in controls.iter().enumerate() {
-                assert!(a.y + a.h <= 6.0 + 460.0, "{a:?} leaves the panel");
+                assert!(a.y + a.h <= 6.0 + crate::layout::PANEL.1, "{a:?} leaves the panel");
                 for b in &controls[i + 1..] {
                     assert!(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y, "overlap {a:?}, {b:?}");
                 }

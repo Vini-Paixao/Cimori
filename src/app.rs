@@ -262,6 +262,9 @@ pub struct IsleApp {
     chat_window: Option<usize>,
     /// The page the ✦ was pressed on: the assistant's back arrow returns to it.
     ai_return: Option<TabPage>,
+    /// The models each provider's CLI listed (asked once a run, when the chat or the settings open).
+    ai_models: Vec<(isle_core::state::AiProviderKind, Vec<isle_core::chat::ModelChoice>)>,
+    ai_models_asked: Vec<isle_core::state::AiProviderKind>,
     chat_tx: Option<tokio::sync::mpsc::UnboundedSender<isle_ai::assistant::Command>>,
 }
 
@@ -307,6 +310,15 @@ fn quota_name(provider: isle_core::state::AiProviderKind) -> &'static str {
     }
 }
 
+/// Whether the AI agent `id` ("claude", "codex") is switched on in IA › Agentes; other providers always are.
+fn agent_on(c: &IsleConfig, id: &str) -> bool {
+    match id {
+        "claude" => c.ai_claude_enabled,
+        "codex" => c.ai_codex_enabled,
+        _ => true,
+    }
+}
+
 fn titled(provider: &str, doing: &str, project: &str) -> String {
     let name = match provider {
         "claude" => "Claude Code",
@@ -336,6 +348,7 @@ impl IsleApp {
         let mut overlay = MultiMonitorOverlay::new(config.monitors.clone(), config.all_monitors, config.main_monitor.clone(),
         ); overlay.over_fullscreen = config.over_fullscreen;
         overlay.hide_maximized = config.hide_maximized;
+        overlay.hide_apps = config.hide_apps.clone();
         overlay.follow_mouse = config.ui.follow_mouse;
         let pomodoro = Pomodoro::new(PomodoroConfig {
             focus_minutes: config.pomodoro_focus_secs / 60,
@@ -399,6 +412,8 @@ impl IsleApp {
             reply_window: 0,
             chat_window: None,
             ai_return: None,
+            ai_models: Vec::new(),
+            ai_models_asked: Vec::new(),
             chat_tx: None,
         }
     }
@@ -629,10 +644,26 @@ impl IsleApp {
         self.state.power = c.power;
         self.state.notifications.per_page = c.notifications_per_page as usize;
         self.state.notification_page = self.state.notification_page.min(self.state.notifications.last_page());
+        // The running Pomodoro and timer take the new lengths now (a started timer keeps its own).
+        if (old.pomodoro_focus_secs, old.pomodoro_break_secs) != (c.pomodoro_focus_secs, c.pomodoro_break_secs) {
+            self.pomodoro.set_config(PomodoroConfig {
+                focus_minutes: c.pomodoro_focus_secs / 60,
+                short_break_minutes: c.pomodoro_break_secs / 60,
+                ..self.pomodoro.config().clone()
+            });
+        }
+        if old.timer_default_secs != c.timer_default_secs {
+            self.countdown.set_duration(c.timer_default_secs as i64 * 1000);
+        }
+        // An agent switched off leaves the island now: its quota bar and its usage page.
+        if !c.ai_claude_enabled { self.state.claude_quota = isle_core::state::QuotaStatus::new(isle_core::state::AiProviderKind::ClaudeCode); }
+        if !c.ai_codex_enabled { self.state.codex_quota = isle_core::state::QuotaStatus::new(isle_core::state::AiProviderKind::Codex); }
+        self.state.usage.retain(|p| agent_on(&c, &p.id));
         self.overlay.over_fullscreen = c.over_fullscreen;
         self.overlay.hide_maximized = c.hide_maximized;
+        self.overlay.hide_apps = c.hide_apps.clone();
         #[cfg(windows)]
-        if (old.over_fullscreen, old.hide_maximized) != (c.over_fullscreen, c.hide_maximized) {
+        if (old.over_fullscreen, old.hide_maximized, &old.hide_apps) != (c.over_fullscreen, c.hide_maximized, &c.hide_apps) {
             self.overlay.step_aside();
         }
         let monitors_changed = (&old.monitors, old.all_monitors, &old.main_monitor)
@@ -689,13 +720,14 @@ impl IsleApp {
         if !m.agenda || agenda_source(old) != agenda_source(&c) {
             self.stop_service("agenda");
         }
-        if !ai(&c) || old.claude_renew_login != c.claude_renew_login {
+        let agents = |c: &IsleConfig| (c.ai_claude_enabled, c.ai_codex_enabled, c.claude_renew_login);
+        if !ai(&c) || agents(old) != agents(&c) {
             self.stop_service("usage");
         }
         if !m.tray && was.tray {
             self.stop_service("tray");
         }
-        if old.modules != c.modules || old.weather != c.weather || old.claude_renew_login != c.claude_renew_login || agenda_source(old) != agenda_source(&c) {
+        if old.modules != c.modules || old.weather != c.weather || agents(old) != agents(&c) || agenda_source(old) != agenda_source(&c) {
             self.start_modules();
         }
         self.keep_visible_tabs();
@@ -704,6 +736,7 @@ impl IsleApp {
             self.tick_runtime_domain(SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs());
         }
         self.apply_phase8_config(Some(old));
+        self.sync_model_label();
         if old.check_updates != c.check_updates {
             self.sync_update_check();
         }
@@ -1035,7 +1068,7 @@ impl IsleApp {
     pub fn apply_ui_action_on(&mut self, island: usize, action: UiAction) {
         match action {
             UiAction::Phase8(action) => self.phase8_action(island, action),
-            UiAction::AiOpen | UiAction::AiBack | UiAction::AiInput | UiAction::AiSend | UiAction::AiStop | UiAction::AiNew | UiAction::AiProvider(_) | UiAction::AiScroll(_) | UiAction::AiIdea(_) => self.ai_action(island,action),
+            UiAction::AiOpen | UiAction::AiBack | UiAction::AiInput | UiAction::AiSend | UiAction::AiStop | UiAction::AiNew | UiAction::AiProvider(_) | UiAction::AiScroll(_) | UiAction::AiIdea(_) | UiAction::AiRun | UiAction::AiDeny => self.ai_action(island,action),
             UiAction::ReplyNotification(id, arrival) => {
                 self.close_ai_input();
                 self.stop_typing_reminder();
@@ -1497,6 +1530,12 @@ impl IsleApp {
                 used_pct,
                 reset_at_unix,
             } => {
+                let id = match provider {
+                    isle_core::state::AiProviderKind::ClaudeCode => "claude",
+                    isle_core::state::AiProviderKind::Codex => "codex",
+                    isle_core::state::AiProviderKind::OpenCodeGo => "opencode",
+                };
+                if !agent_on(&self.config, id) { return; }
                 let alerts = self.config.quota_alerts;
                 let target_quota = match provider {
                     isle_core::state::AiProviderKind::ClaudeCode => &mut self.state.claude_quota,
@@ -1588,6 +1627,7 @@ impl IsleApp {
     /// New limits read: all of them for the AI tab; each AI's fullest window drives the bar on the pill and
     /// the 80% / 95% / "de volta!" alerts.
     pub fn apply_usage(&mut self, providers: Vec<isle_core::state::UsageProvider>, now_unix: u64) {
+        let providers: Vec<_> = providers.into_iter().filter(|p| agent_on(&self.config, &p.id)).collect();
         for provider in &providers {
             let kind = match provider.id.as_str() {
                 "claude" => isle_core::state::AiProviderKind::ClaudeCode,
@@ -1612,6 +1652,8 @@ impl IsleApp {
     /// Draws every island as it is now (each its own mode and spring, the same data).
     fn present(&mut self) -> Result<()> {
         self.watch_downloads_tab();
+        let alert = matches!(self.islands[0].mode, PillMode::AlertBanner { .. } | PillMode::PermissionPrompt);
+        self.overlay.keep_main_shown(alert && self.config.ui.banner_over_apps);
         let gap = self.config.top_gap();
         for (i, island) in self.islands.iter().enumerate().take(self.overlay.window_count()) {
             self.state.mode = island.mode.clone();
@@ -1922,6 +1964,13 @@ impl IsleApp {
             && (p8.bar_sliding() || (p8.download_animation && p8.download_fill.is_animating(self.state.now_ms)))
         {
             sleep = sleep.min(Duration::from_millis(if p8.bar_sliding() { 50 } else { 16 }));
+        }
+        // The music's bars on the open panel's header, while something plays.
+        if isle_render::window::animations_enabled() && self.state.modules.media
+            && self.state.media.as_ref().is_some_and(|m| m.playing)
+            && self.islands.iter().any(|i| matches!(i.mode, PillMode::Expanded(_)))
+        {
+            sleep = sleep.min(Duration::from_millis(50));
         }
         // A title scrolling on the bar: every animation frame, as mac-island 3.1.1 redraws it (25 a
         // second moved it 1.4 px at a time, visibly stepping).
@@ -2700,7 +2749,7 @@ END:VCALENDAR");
         assert_eq!(app.state.agenda_day, days_from_civil(2026, 12, 20));
         app.apply_ui_action(UiAction::SwitchTab(TabPage::CalendarWeather));
         assert_eq!(app.state.agenda_day, today);
-        assert_eq!(app.islands[0].geom.height.target, 450.0);
+        assert_eq!(app.islands[0].geom.height.target, isle_render::layout::PANEL.1);
     }
 
     #[test]
@@ -3208,6 +3257,26 @@ mod control_tests {
     }
 
     #[test]
+    fn timer_lengths_and_agent_switches_from_the_settings_apply_at_once() {
+        let mut app = IsleApp::new(IsleConfig::default());
+        let old = app.config.clone();
+        app.config.pomodoro_focus_secs = 50 * 60;
+        app.config.pomodoro_break_secs = 7 * 60;
+        app.config.timer_default_secs = 9 * 60;
+        app.config.ai_codex_enabled = false;
+        app.apply_config(&old, false);
+        assert_eq!((app.pomodoro.config().focus_minutes, app.pomodoro.config().short_break_minutes), (50, 7));
+        assert_eq!(app.countdown.duration_ms, 9 * 60_000);
+        let provider = |id: &str| isle_core::state::UsageProvider { id: id.into(), ..Default::default() };
+        app.apply_usage(vec![provider("claude"), provider("codex")], 1000);
+        assert_eq!(app.state.usage.iter().map(|p| p.id.as_str()).collect::<Vec<_>>(), ["claude"]);
+        let old = app.config.clone();
+        app.config.ai_claude_enabled = false;
+        app.apply_config(&old, false);
+        assert!(app.state.usage.is_empty(), "switched off, its usage leaves at once");
+    }
+
+    #[test]
     fn an_alert_beeps_when_it_shows_unless_the_sound_is_off() {
         for (on, beeps) in [(true, 1), (false, 0)] {
             let mut app = IsleApp::new(IsleConfig { alert_sound: on, ..IsleConfig::default() });
@@ -3245,18 +3314,20 @@ mod control_tests {
         app.state.weather_day = 4;
         app.apply_ui_action(UiAction::OpenWeather);
         assert_eq!(app.islands[0].mode, PillMode::Expanded(TabPage::Weather));
-        assert_eq!((app.islands[0].geom.width.target, app.islands[0].geom.height.target), (620.0, 470.0));
+        assert_eq!((app.islands[0].geom.width.target, app.islands[0].geom.height.target), (isle_render::layout::PANEL.0, isle_render::layout::PANEL.1));
         assert_eq!(app.state.weather_day, 0);
         app.apply_ui_action(UiAction::WeatherDay(2));
         assert_eq!(app.state.weather_day, 2);
     }
     #[test]
-    fn panels_use_the_cimori_sizes_for_each_view() {
+    fn every_tab_opens_the_island_at_one_size() {
         let mut app = IsleApp::new(IsleConfig::default());
-        app.apply_ui_action(UiAction::SwitchTab(TabPage::ControlCenter));
-        assert_eq!(app.islands[0].geom.height.target, 470.0);
-        app.apply_ui_action(UiAction::SwitchTab(TabPage::Media));
-        assert_eq!(app.islands[0].geom.height.target, 380.0);
+        let mut sizes = Vec::new();
+        for tab in [TabPage::ControlCenter, TabPage::Weather, TabPage::Media, TabPage::Tray, TabPage::Notifications] {
+            app.apply_ui_action(UiAction::SwitchTab(tab));
+            sizes.push((tab, app.islands[0].geom.width.target, app.islands[0].geom.height.target));
+        }
+        assert!(sizes.iter().all(|s| (s.1, s.2) == (sizes[0].1, sizes[0].2)), "{sizes:?}");
     }
     #[test]
     fn volume_keys_show_main_osd_but_keep_panels_and_permission_cards() {
@@ -3374,7 +3445,7 @@ mod notification_tests {
         app.apply_ui_action(UiAction::ReadNotification(2,2000));
         assert_eq!(app.state.notifications.unread_count(),4);
         app.apply_ui_action(UiAction::SwitchTab(TabPage::Notifications));
-        assert_eq!(app.islands[0].geom.height.target, 450.0);
+        assert_eq!(app.islands[0].geom.height.target, isle_render::layout::PANEL.1);
         app.apply_ui_action(UiAction::NotificationsPage(usize::MAX));
         assert_eq!(app.state.notification_page,1);
         app.apply_ui_action(UiAction::ClearNotifications);

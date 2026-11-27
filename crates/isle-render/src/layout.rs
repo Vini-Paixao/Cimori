@@ -7,7 +7,13 @@ use isle_core::state::{IslandState, PillMode, TabPage};
 use isle_core::timers::TimerMode;
 use isle_core::tray::{TRAY_PER_PAGE, overflow_indices};
 
-pub const BODY: f32 = 94.0;
+/// The open panel's header: one row (isle's), its top and height; the line under it; the body after.
+pub const HEAD_Y: f32 = 9.0;
+pub const HEAD_H: f32 = 28.0;
+pub const LINE_Y: f32 = 46.0;
+pub const BODY: f32 = 56.0;
+/// How much higher the body is than with the header's old two rows (94).
+const HEAD_SAVED: f32 = 94.0 - BODY;
 pub const TABS: [TabPage; 12] = TabPage::NAV;
 pub fn fit_size(tab:TabPage,available_w:f32,available_h:f32)->(f32,f32,f32){let(w,h,r)=expanded_size(tab);(w.min(available_w.max(320.)),h.min(available_h.max(220.)),r)}
 pub fn natural_height(s:&IslandState,viewport:f32)->f32{if s.mode==PillMode::Expanded(TabPage::AiHub)&&s.chat.open{viewport}else if let PillMode::Expanded(t)=s.mode{content_height(t,s).max(viewport)}else{viewport}}
@@ -49,11 +55,6 @@ pub fn missing_controls(s: &IslandState) -> Vec<isle_core::state::ControlTile> {
     isle_core::state::ControlTile::CATALOG.into_iter().filter(|t| !s.control_tiles.contains(t)).collect()
 }
 
-/// The header's "Editar" / "Concluído" button on the control center.
-pub fn edit_button(left: f32, top: f32) -> HitBox {
-    // The header's left, free since the clock moved right with isle's status.
-    HitBox { x: left + 20.0, y: top + 9.0, w: 86.0, h: 28.0, action: UiAction::EditControls }
-}
 pub fn footer_height(s:&IslandState)->f32{match s.mode{PillMode::Expanded(TabPage::AiHub)=>if s.chat.open{104.}else{0.},PillMode::Expanded(TabPage::Timer)=>if s.timers.mode==TimerMode::Reminders{24.}else{64.},PillMode::Expanded(TabPage::Media)=>140.,PillMode::Expanded(TabPage::Notifications|TabPage::Tray)=>52.,PillMode::Expanded(TabPage::Clipboard|TabPage::Shelf|TabPage::Usb|TabPage::Downloads)=>68.,_=>0.}}
 pub fn scroll_top(s:&IslandState)->f32{if s.mode==PillMode::Expanded(TabPage::Timer)&&s.timers.mode==TimerMode::Reminders{BODY+140.}else{BODY}}
 pub fn viewport_hitboxes(canvas:f32,w:f32,h:f32,top:f32,s:&IslandState)->Vec<HitBox>{
@@ -66,14 +67,18 @@ pub fn viewport_hitboxes(canvas:f32,w:f32,h:f32,top:f32,s:&IslandState)->Vec<Hit
         if b.h<=0.||b.y<top||b.y+b.h>top+h+0.1{None}else{Some(b)}
     }).collect()
 }
+/// Every tab's panel: one size, so going from tab to tab does not resize the island.
+pub const PANEL: (f32, f32, f32) = (620.0, 470.0 - HEAD_SAVED, 28.0);
+/// Música and Bandeja were made for a shorter panel (380 and 390 under the old header): their content goes
+/// this much lower, in the middle of `PANEL` (drawing and clicks alike).
+pub const MEDIA_DROP: f32 = (PANEL.1 + HEAD_SAVED - 380.0) / 2.0;
+pub const TRAY_DROP: f32 = (PANEL.1 + HEAD_SAVED - 390.0) / 2.0;
+
 pub fn expanded_size(tab: TabPage) -> (f32, f32, f32) {
     match tab {
-        TabPage::ControlCenter => (600.0, 470.0, 28.0),
-        TabPage::Weather => (620.0, 470.0, 28.0),
-        TabPage::Media => (560.0, 380.0, 28.0),
-        TabPage::Tray => (560.0, 390.0, 28.0),
-        TabPage::Power => (560.0, 250.0, 28.0),
-        _ => (560.0, 450.0, 28.0),
+        // The power menu (from its button, not a tab): as wide, shorter.
+        TabPage::Power => (PANEL.0, 250.0, PANEL.2),
+        _ => PANEL,
     }
 }
 /// The tabs whose module is on, in the navigation's order.
@@ -98,17 +103,20 @@ pub fn visible_tabs(m: &isle_core::config::Modules) -> Vec<TabPage> {
 }
 
 /// Port of ExpandedView._buildTabs (isle): icons in a row from the left, 2 px apart, the open one in a pill
-/// with its name (.isle-tab: 4 px by 10, the name 13 px semibold 6 px from the icon). Narrower when they
-/// would not fit, then without the name.
-pub fn navigation(left: f32, top: f32, w: f32, m: &isle_core::config::Modules, open: Option<TabPage>) -> Vec<HitBox> {
+/// with its name (.isle-tab: 4 px by 10, the name 13 px semibold 6 px from the icon), in the header's row
+/// up to `right`. Narrower when they would not fit, then without the name.
+pub fn navigation(left: f32, top: f32, right: f32, m: &isle_core::config::Modules, open: Option<TabPage>) -> Vec<HitBox> {
     let tabs = visible_tabs(m);
     let name = open.filter(|t| tabs.contains(t)).map_or(0., |t| crate::pages::BAR_TEXT.with(|text| text.width(t.label(), 13., crate::text::Weight::Semibold)) + 6.);
     let width = |pad: f32, name: f32| tabs.len() as f32 * (16. + pad * 2. + 2.) + name;
-    let (pad, name) = [(10., name), (7., name), (7., 0.)].into_iter().find(|(p, n)| width(*p, *n) <= w - 40.).unwrap_or((7., 0.));
+    let room = right - (left + 20.);
+    // Still too many: the icons closer, down to touching, never past `right`.
+    let squeezed = ((room / tabs.len().max(1) as f32 - 18.) / 2.).clamp(0., 3.);
+    let (pad, name) = [(10., name), (7., name), (7., 0.), (5., 0.), (3., 0.)].into_iter().find(|(p, n)| width(*p, *n) <= room).unwrap_or((squeezed, 0.));
     let mut x = left + 20.;
     tabs.into_iter().map(|t| {
         let tw = 16. + pad * 2. + if Some(t) == open { name } else { 0. };
-        let hb = HitBox { x, y: top + 47., w: tw, h: 26., action: UiAction::SwitchTab(t) };
+        let hb = HitBox { x, y: top + HEAD_Y + 1., w: tw, h: HEAD_H - 2., action: UiAction::SwitchTab(t) };
         x += tw + 2.;
         hb
     }).collect()
@@ -121,14 +129,52 @@ pub fn tab_pad(nav: &[HitBox]) -> f32 {
 pub fn open_tab(s: &IslandState) -> Option<TabPage> {
     match s.mode { PillMode::Expanded(TabPage::AiHub) if s.chat.open => None, PillMode::Expanded(t) => Some(t), _ => None }
 }
-/// Port of ExpandedView._buildHeader's status (isle): the ✦ (assistant), the date, the time in bold, then the
-/// gear (Cimori's collapse arrow after it). The ✦ hit box, and where the date and the time start.
-pub fn header_status(left: f32, top: f32, w: f32, s: &IslandState) -> (Option<HitBox>, f32, f32) {
+/// The header's right side (port of ExpandedView._buildHeader's status, isle), right to left: Cimori's
+/// collapse arrow, the gear, the time in bold, the date, the usage rings, the mascot (the assistant),
+/// the music's bars while something plays. The tabs take what is left of the row (`navigation` up to
+/// `start`).
+pub struct Header {
+    pub bars: Option<HitBox>,
+    pub mascot: Option<HitBox>,
+    /// Each with the provider's id ("claude", "codex") and its session's percent.
+    pub rings: Vec<(HitBox, String, f64)>,
+    pub date_x: f32,
+    pub time_x: f32,
+    pub gear: HitBox,
+    pub collapse: HitBox,
+    /// Where the right side begins.
+    pub start: f32,
+}
+
+/// The providers whose usage ring shows ("Uso no topo do painel"): 0 Claude, 1 Codex, 2 both, 3 none.
+pub fn header_rings(s: &IslandState) -> Vec<(String, f64)> {
+    let wanted: &[&str] = match s.ui.header_usage { 0 => &["claude"], 1 => &["codex"], 2 => &["claude", "codex"], _ => &[] };
+    if !s.modules.ai { return vec![]; }
+    wanted.iter().filter_map(|id| {
+        let p = s.usage.iter().find(|p| p.id == *id)?;
+        Some((p.id.clone(), p.windows.first()?.percent))
+    }).collect()
+}
+
+pub fn header(left: f32, top: f32, w: f32, s: &IslandState) -> Header {
+    use crate::pages::UiAction as A;
+    let y = top + HEAD_Y;
+    let at = |x: f32, bw: f32, action: A| HitBox { x, y, w: bw, h: HEAD_H, action };
     crate::pages::BAR_TEXT.with(|text| {
+        let collapse = at(left + w - 50., 30., A::ToggleCollapse);
+        let gear = at(left + w - 84., 30., A::OpenSettings);
         let time_x = left + w - 92. - text.width(&s.clock_text, 13., crate::text::Weight::Semibold);
         let date_x = time_x - 8. - text.width(&s.date_text, 13., crate::text::Weight::Regular);
-        let star = s.modules.ai.then_some(HitBox { x: date_x - 38., y: top + 9., w: 28., h: 28., action: UiAction::AiOpen });
-        (star, date_x, time_x)
+        let mut x = date_x - 6.;
+        let mut rings: Vec<_> = header_rings(s).into_iter().rev().map(|(id, pct)| {
+            x -= 26.;
+            (at(x, 24., A::SwitchTab(TabPage::AiHub)), id, pct)
+        }).collect();
+        rings.reverse();
+        let mascot = s.modules.ai.then(|| { x -= 32.; at(x, 30., A::AiOpen) });
+        let playing = s.modules.media && s.media.as_ref().is_some_and(|m| m.playing);
+        let bars = playing.then(|| { x -= 28.; at(x, 24., A::SwitchTab(TabPage::Media)) });
+        Header { bars, mascot, rings, date_x, time_x, gear, collapse, start: x - 8. }
     })
 }
 /// Port of UsagePage._content (isle), every provider stacked: the head (20), 14 apart, then each limit
@@ -145,8 +191,12 @@ pub fn expanded_hitboxes(canvas: f32, w: f32, h: f32, top: f32, s: &IslandState)
         return vec![];
     };
     let left = (canvas - w) * 0.5;
-    let mut boxes = navigation(left, top, w, &s.modules, open_tab(s));
-    boxes.extend(header_status(left, top, w, s).0);
+    let head = header(left, top, w, s);
+    let mut boxes = navigation(left, top, head.start, &s.modules, open_tab(s));
+    boxes.extend(head.bars.into_iter().chain(head.mascot));
+    boxes.extend(head.rings.into_iter().map(|r| r.0));
+    boxes.push(head.collapse);
+    boxes.push(head.gear);
     let mut add = |x, y, bw, bh, a| {
         boxes.push(HitBox {
             x: left + x,
@@ -156,14 +206,10 @@ pub fn expanded_hitboxes(canvas: f32, w: f32, h: f32, top: f32, s: &IslandState)
             action: a,
         })
     };
-    add(w - 50.0, 9.0, 30.0, 28.0, UiAction::ToggleCollapse);
-    add(w - 84.0, 9.0, 30.0, 28.0, UiAction::OpenSettings);
     match tab {
         TabPage::AiHub if s.chat.open => boxes.extend(crate::chat::hitboxes(left, top, w, h, &s.chat)),
         TabPage::AiHub => {}
         TabPage::ControlCenter => {
-            let e = edit_button(0.0, 0.0);
-            add(e.x, e.y, e.w, e.h, UiAction::EditControls);
             let cw = (w - 48.0) / 2.0;
             // The first two buttons are the big ones, the rest four to a row.
             for (i, t) in s.control_tiles.iter().copied().enumerate() {
@@ -190,7 +236,12 @@ pub fn expanded_hitboxes(canvas: f32, w: f32, h: f32, top: f32, s: &IslandState)
             }
             let n = s.control_tiles.len();
             let tiles_end = control_tiles_end(n);
+            // Port of ControlPanel's Edit button (mac-island 3.1.1), down in the center: on the
+            // "Volume por aplicativo" row; "Concluído" on "Adicionar controles" while editing.
+            let label = if s.control_editing { "Concluído" } else { "Editar" };
+            let ew = crate::pages::BAR_TEXT.with(|t| t.width(label, 12., crate::text::Weight::Medium)) + 22.;
             if s.control_editing {
+                add(w - 20.0 - ew, control_add_top(n) - 1.0, ew, 24.0, UiAction::EditControls);
                 let top = control_add_top(n) + 30.0;
                 let col = (w - 40.0) / 3.0;
                 for (j, t) in missing_controls(s).into_iter().enumerate() {
@@ -229,6 +280,7 @@ pub fn expanded_hitboxes(canvas: f32, w: f32, h: f32, top: f32, s: &IslandState)
             if s.control_mixer {
                 add(w - 54.0, by, 34.0, 24.0, UiAction::OpenMixer);
             }
+            add(if s.control_mixer { w - 62.0 - ew } else { w - 20.0 - ew }, by, ew, 24.0, UiAction::EditControls);
             let capacity = if s.control_mixer { ((h - 15.0 - by - 30.0) / 27.0).floor().max(0.0) as usize } else { 0 };
             for i in 0..s.app_volumes.len().min(capacity) {
                 let y = by + 28.0 + i as f32 * 27.0;
@@ -258,7 +310,7 @@ pub fn expanded_hitboxes(canvas: f32, w: f32, h: f32, top: f32, s: &IslandState)
                 let size = if i == 1 { 50.0 } else { 36.0 };
                 add(
                     w / 2.0 + (i as f32 - 1.0) * 64.0 - size / 2.0,
-                    BODY + 152.0 + (50.0 - size) / 2.0,
+                    BODY + MEDIA_DROP + 152.0 + (50.0 - size) / 2.0,
                     size,
                     size,
                     UiAction::Media(k),
@@ -364,7 +416,7 @@ pub fn expanded_hitboxes(canvas: f32, w: f32, h: f32, top: f32, s: &IslandState)
             {
                 add(
                     20.0 + (n % columns) as f32 * cell_w,
-                    BODY + 48.0 + (n / columns) as f32 * row_pitch,
+                    BODY + TRAY_DROP + 48.0 + (n / columns) as f32 * row_pitch,
                     cell_w - 6.0,
                     cell_h,
                     UiAction::TrayClick(*i, false),
@@ -539,27 +591,27 @@ pub fn expanded_hitboxes(canvas: f32, w: f32, h: f32, top: f32, s: &IslandState)
     boxes
 }
 
-/// The closed pill's items, in the settings' order: `(item, x, width)`. The first sits 16 px in
-/// from the left; the rest, in order, end 12 px before the right edge. Items with nothing to show
-/// take no room; what does not fit drops from the end of the list, never the first. With
-/// "Relógio no meio" (`ui.clock_center`) the clock sits in the middle, the items before it on the left.
-/// Drawing and hit testing both use this.
-pub fn compact_slots(
-    text: &crate::text::Text,
-    x: f32,
-    w: f32,
-    s: &IslandState,
-) -> Vec<(isle_core::config::BarItem, f32, f32)> {
+/// Room between two items of the closed pill.
+const BAR_GAP: f32 = 8.0;
+/// Room on the clock's sides when it is kept in the middle (mac-island's "a little more room").
+const CLOCK_GAP: f32 = 14.0;
+/// Room between the pill's edges and its outer items.
+const BAR_PAD: f32 = 14.0;
+/// The least a song title or the next event shrinks to before items drop.
+const FLEX_MIN: f32 = 40.0;
+
+/// The closed pill's items with something to show, in the settings' order: (item, natural width,
+/// shrinks?). The clock and the timer are measured with their digits as zeros, so the pill does not
+/// twitch as the time ticks.
+fn bar_entries(text: &crate::text::Text, s: &IslandState) -> Vec<(isle_core::config::BarItem, f32, bool)> {
     use crate::text::Weight;
     use isle_core::config::BarItem;
-    const GAP: f32 = 8.0;
-    const FLEX_MIN: f32 = 40.0;
+    let zeros = |t: &str| t.chars().map(|c| if c.is_ascii_digit() { '0' } else { c }).collect::<String>();
     let playing = compact_media_text(s);
     let media_keys = crate::pages::compact_media_keys(s).len() as f32 * 23.;
-    // (natural width, shrinks?)
     let natural = |item: BarItem| -> Option<(f32, bool)> {
         match item {
-            BarItem::Clock => Some((text.width(&s.clock_text, 15.0, Weight::Semibold), false)),
+            BarItem::Clock => Some((text.width(&zeros(&s.clock_text), 15.0, Weight::Semibold), false)),
             BarItem::Next => {
                 let t = next_text(s);
                 let art = if s.chat.busy { 26.0 } else { 0.0 };
@@ -569,7 +621,7 @@ pub fn compact_slots(
             BarItem::Media => playing.map(|t| ((text.width(t, 12.0, Weight::Medium) + 26.0).min(s.ui.media_title_width as f32) + media_keys, media_keys == 0.)),
             BarItem::Weather => (s.modules.weather && s.weather.is_some()).then_some((crate::pages::WEATHER_W, false)),
             BarItem::Notifications => (s.modules.notifications && s.notifications.unread_count() > 0).then_some((BELL_W, false)),
-            BarItem::Timer => s.timer_text.as_deref().filter(|_| s.modules.timer).map(|t| (text.width(t, 12.0, Weight::Medium), false)),
+            BarItem::Timer => s.timer_text.as_deref().filter(|_| s.modules.timer).map(|t| (text.width(&zeros(t), 12.0, Weight::Medium), false)),
             BarItem::Tray => s.modules.tray.then_some((26.0 * (isle_core::tray::inline_indices(&s.tray).len() + 1) as f32, false)),
             BarItem::Power => Some((crate::pages::POWER_W, false)),
         }
@@ -579,74 +631,114 @@ pub fn compact_slots(
     if s.ui.media_always && !items.contains(&BarItem::Media) {
         items.push(BarItem::Media);
     }
-    let mut list: Vec<(BarItem, f32, bool)> =
-        items.into_iter().filter_map(|i| natural(i).map(|(nw, flex)| (i, nw, flex))).collect();
-    let room = w - 16.0 - 12.0;
-    // What does not fit drops from the end (`keep` stay at least); the flexible ones (song titles,
-    // the next event) share what the fixed ones leave.
-    let fit = |list: &mut Vec<(BarItem, f32, bool)>, room: f32, keep: usize| {
-        let least = |l: &[(BarItem, f32, bool)]| -> f32 {
-            l.iter().map(|(_, nw, flex)| if *flex { nw.min(FLEX_MIN) } else { *nw }).sum::<f32>()
-                + GAP * l.len().saturating_sub(1) as f32
-        };
-        while list.len() > keep && least(list) > room {
-            list.pop();
-        }
-        let mut spare = room - least(list);
-        for item in list.iter_mut().filter(|i| i.2) {
-            let grow = (item.1 - FLEX_MIN).max(0.0).min(spare);
-            let base = item.1.min(FLEX_MIN);
-            spare -= grow;
-            item.1 = base + grow;
-        }
+    items.into_iter().filter_map(|i| natural(i).map(|(nw, flex)| (i, nw, flex))).collect()
+}
+
+/// Items side by side, with their gaps.
+fn run_width(list: &[(isle_core::config::BarItem, f32, bool)]) -> f32 {
+    list.iter().map(|i| i.1).sum::<f32>() + BAR_GAP * list.len().saturating_sub(1) as f32
+}
+
+/// "Relógio no meio": how many of the other items go on the clock's left. Port of mac-island 3.1.1's
+/// clock among the groups: where both sides are the most alike, the others keeping their order; the
+/// clock's own place in the list wins while it is nearly as even, so items coming and going (a song,
+/// the bell) do not make the rest hop sides.
+fn clock_split(others: &[(isle_core::config::BarItem, f32, bool)], own: usize) -> usize {
+    let side = |l: &[(isle_core::config::BarItem, f32, bool)]| if l.is_empty() { 0.0 } else { run_width(l) + CLOCK_GAP };
+    let uneven = |at: usize| (side(&others[..at]) - side(&others[at..])).abs();
+    let best = (0..=others.len()).min_by(|a, b| uneven(*a).total_cmp(&uneven(*b))).unwrap_or(0);
+    let own = own.min(others.len());
+    if uneven(own) <= uneven(best) + 16.0 { own } else { best }
+}
+
+/// What does not fit drops from the end of `list` (`keep` stay at least); the flexible ones (song
+/// titles, the next event) share what the fixed ones leave.
+fn fit_run(list: &mut Vec<(isle_core::config::BarItem, f32, bool)>, room: f32, keep: usize) {
+    let least = |l: &[(isle_core::config::BarItem, f32, bool)]| -> f32 {
+        l.iter().map(|(_, nw, flex)| if *flex { nw.min(FLEX_MIN) } else { *nw }).sum::<f32>()
+            + BAR_GAP * l.len().saturating_sub(1) as f32
     };
-    // Port of PlaceClockCenter with islandBarFixedSides (mac-island 3.1.1): the clock in the middle,
-    // what comes before it in the list packed on the left, what comes after on the right.
+    while list.len() > keep && least(list) > room {
+        list.pop();
+    }
+    let mut spare = room - least(list);
+    for item in list.iter_mut().filter(|i| i.2) {
+        let grow = (item.1 - FLEX_MIN).max(0.0).min(spare);
+        let base = item.1.min(FLEX_MIN);
+        spare -= grow;
+        item.1 = base + grow;
+    }
+}
+
+/// The closed pill's width its items ask for (`pages::compact_tray_width` keeps it at least "Largura
+/// mínima"): side by side; with "Relógio no meio", both sides as wide as the wider one, so the clock
+/// is in the middle.
+pub fn compact_content_width(text: &crate::text::Text, s: &IslandState) -> f32 {
+    use isle_core::config::BarItem;
+    let mut list = bar_entries(text, s);
     if s.ui.clock_center {
-        if let Some(at) = list.iter().position(|i| i.0 == BarItem::Clock) {
-            let mut right = list.split_off(at + 1);
-            let (clock, cw, _) = list.pop().unwrap();
+        if let Some(own) = list.iter().position(|i| i.0 == BarItem::Clock) {
+            let (_, cw, _) = list.remove(own);
+            let at = clock_split(&list, own);
+            let side = |l: &[(BarItem, f32, bool)]| if l.is_empty() { 0.0 } else { run_width(l) + CLOCK_GAP };
+            return 2.0 * side(&list[..at]).max(side(&list[at..])) + cw + 2.0 * BAR_PAD;
+        }
+    }
+    run_width(&list) + 2.0 * BAR_PAD
+}
+
+/// The closed pill's items: `(item, x, width)`, drawn and hit tested alike. Side by side in the
+/// settings' order, the group in the middle of the pill. With "Relógio no meio" (`ui.clock_center`)
+/// the clock is in the middle and the others, in their order, on its two sides as evenly as they go
+/// (`clock_split`), each side against the clock. What does not fit drops from the end (on the clock's
+/// sides, the farthest from it first); the clock or the first item always stays.
+pub fn compact_slots(
+    text: &crate::text::Text,
+    x: f32,
+    w: f32,
+    s: &IslandState,
+) -> Vec<(isle_core::config::BarItem, f32, f32)> {
+    use isle_core::config::BarItem;
+    let mut list = bar_entries(text, s);
+    let room = (w - 2.0 * BAR_PAD).max(0.0);
+    if s.ui.clock_center {
+        if let Some(own) = list.iter().position(|i| i.0 == BarItem::Clock) {
+            let (clock, cw, _) = list.remove(own);
+            let at = clock_split(&list, own);
+            let mut right = list.split_off(at);
             let mut left = list;
             let cw = cw.min(room);
             let cx = x + (w - cw) / 2.0;
-            fit(&mut left, cx - GAP - (x + 16.0), 0);
-            fit(&mut right, x + w - 12.0 - (cx + cw + GAP), 0);
+            let half = (room - cw) / 2.0 - CLOCK_GAP;
+            left.reverse();
+            fit_run(&mut left, half, 0);
+            left.reverse();
+            fit_run(&mut right, half, 0);
             let mut out = Vec::with_capacity(left.len() + right.len() + 1);
-            let mut at = x + 16.0;
+            let mut at = cx - CLOCK_GAP - run_width(&left);
             for (item, iw, _) in left {
                 out.push((item, at, iw));
-                at += iw + GAP;
+                at += iw + BAR_GAP;
             }
             out.push((clock, cx, cw));
-            let mut at = x + w - 12.0 - right.iter().map(|i| i.1 + GAP).sum::<f32>() + GAP;
+            let mut at = cx + cw + CLOCK_GAP;
             for (item, iw, _) in right {
                 out.push((item, at, iw));
-                at += iw + GAP;
+                at += iw + BAR_GAP;
             }
             return out;
         }
     }
-    fit(&mut list, room, 1);
-    // isle's notch keeps its one item (the clock) in the middle.
-    if s.ui.pill_style == isle_core::config::PillStyle::Notch && list.len() == 1 {
-        let (item, iw, _) = list[0];
-        let iw = iw.min(room);
-        return vec![(item, x + (w - iw) / 2.0, iw)];
-    }
-    let mut out = Vec::with_capacity(list.len());
-    let mut iter = list.into_iter();
-    if let Some((first, fw, _)) = iter.next() {
-        out.push((first, x + 16.0, fw.min(room)));
-        let rest: Vec<_> = iter.collect();
-        let mut right = x + w - 12.0;
-        let mut placed = Vec::with_capacity(rest.len());
-        for (item, iw, _) in rest.into_iter().rev() {
-            placed.push((item, right - iw, iw));
-            right -= iw + GAP;
-        }
-        out.extend(placed.into_iter().rev());
-    }
-    out
+    fit_run(&mut list, room, 1);
+    let mut at = x + (w - run_width(&list).min(room)) / 2.0;
+    list.into_iter()
+        .map(|(item, iw, _)| {
+            let iw = iw.min(room);
+            let slot = (item, at, iw);
+            at += iw + BAR_GAP;
+            slot
+        })
+        .collect()
 }
 
 /// The bell and its count on the bar.
@@ -747,7 +839,7 @@ mod presentation_tests {
         assert!(icon.w < tile.w && icon.h < tile.h && icon.y < tile.y);
         assert_eq!(icon.w, icon.h);
         assert!(icon.contains(icon.x + icon.w / 2., icon.y + icon.h / 2.));
-        assert_eq!(action(&s, UiAction::TrayPage(1)).y, 354.0);
+        assert_eq!(action(&s, UiAction::TrayPage(1)).y, expanded_size(TabPage::Tray).1 - 36.0, "the pages stay at the bottom");
 
         s.tray_page = 1;
         let (w, h, _) = expanded_size(TabPage::Tray);

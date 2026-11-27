@@ -7,7 +7,7 @@ use crate::{
 };
 use isle_core::{chat::Chat, state::AiProviderKind};
 
-pub const TEXT_TOP: f32 = 144.0;
+pub const TEXT_TOP: f32 = crate::layout::BODY + 50.0;
 /// Port of IDEAS (isle voice.js): what to try under an empty field: the chip, the words it puts in, and
 /// whether it asks at once.
 pub const IDEAS: [(&str, &str, bool); 3] = [
@@ -20,6 +20,29 @@ pub fn ideas_shown(chat: &Chat) -> bool {
     chat.items.is_empty() && !chat.busy && chat.error.is_none() && chat.input.text.is_empty()
 }
 pub const LINE_HEIGHT: f32 = 18.0;
+/// The most lines of a command the card shows; longer, it is not offered to run (never run unseen).
+pub const APPROVAL_MAX_LINES: usize = 8;
+pub const APPROVAL_LINE: f32 = 17.0;
+/// The card of a command waiting for Executar or Negar (isle's), over the field: its top and height
+/// from the panel's top, and the command's lines, whole (None: too long to show, so not runnable).
+pub struct ApprovalCard {
+    pub top: f32,
+    pub height: f32,
+    pub lines: Option<Vec<String>>,
+}
+pub fn approval_card(w: f32, h: f32, chat: &Chat) -> Option<ApprovalCard> {
+    let a = chat.approval.as_ref()?;
+    let wrapped: Vec<String> = crate::pages::BAR_TEXT.with(|t| {
+        format!("$ {}", a.command).split('\n').flat_map(|l| {
+            let l = t.wrap_exact(l.trim_end_matches('\r'), w - 88., 12., Weight::Regular);
+            if l.is_empty() { vec![String::new()] } else { l }
+        }).collect()
+    });
+    let lines = (wrapped.len() <= APPROVAL_MAX_LINES && isle_core::chat::showable(&a.command)).then_some(wrapped);
+    let shown = lines.as_ref().map_or(2, Vec::len);
+    let height = 84. + shown as f32 * APPROVAL_LINE;
+    Some(ApprovalCard { top: h - 66. - height, height, lines })
+}
 pub fn hitboxes(left: f32, top: f32, w: f32, h: f32, chat: &Chat) -> Vec<HitBox> {
     let hb = |x, y, w, h, action| HitBox {
         x: left + x,
@@ -32,8 +55,8 @@ pub fn hitboxes(left: f32, top: f32, w: f32, h: f32, chat: &Chat) -> Vec<HitBox>
         return vec![];
     }
     let mut boxes = vec![
-        hb(20., 94., 30., 30., UiAction::AiBack),
-        hb(w - 50., 94., 30., 30., UiAction::AiNew),
+        hb(20., crate::layout::BODY, 30., 30., UiAction::AiBack),
+        hb(w - 50., crate::layout::BODY, 30., 30., UiAction::AiNew),
     ];
     let widths = [(w-134.)/3.;3];
     let mut x = 64.;
@@ -45,10 +68,16 @@ pub fn hitboxes(left: f32, top: f32, w: f32, h: f32, chat: &Chat) -> Vec<HitBox>
     .into_iter()
     .enumerate()
     {
-        boxes.push(hb(x, 94., widths[i], 30., UiAction::AiProvider(p)));
+        boxes.push(hb(x, crate::layout::BODY, widths[i], 30., UiAction::AiProvider(p)));
         x += widths[i] + 5.;
     }
-    if ideas_shown(chat) {
+    if let Some(card) = approval_card(w, h, chat) {
+        let y = card.top + card.height - 38.;
+        if card.lines.is_some() {
+            boxes.push(hb(w - 20. - 104., y, 92., 26., UiAction::AiRun));
+        }
+        boxes.push(hb(w - 20. - 104. - 92., y, 84., 26., UiAction::AiDeny));
+    } else if ideas_shown(chat) {
         // .isle-voice-idea: 12 px semibold, 4 px by 11, 6 px apart.
         let mut x = 20.;
         for (i, (name, _, _)) in IDEAS.iter().enumerate() {
@@ -118,6 +147,22 @@ pub fn visible_range(total: usize, capacity: usize, scroll: usize) -> std::ops::
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn a_command_runs_only_when_the_card_shows_it_whole() {
+        let mut chat = Chat { open: true, busy: true, ..Chat::default() };
+        let (w, h) = (620., 432.);
+        let run = |c: &Chat| hitboxes(0., 0., w, h, c).iter().any(|b| b.action == UiAction::AiRun);
+        assert!(!run(&chat), "nothing asked");
+        chat.approval = Some(isle_core::chat::Approval { title: "Ver o Node".into(), command: "node -v".into() });
+        assert!(run(&chat));
+        assert!(hitboxes(0., 0., w, h, &chat).iter().any(|b| b.action == UiAction::AiDeny));
+        let long = "Get-ChildItem C:/ -Recurse | Where-Object { $_.Length -gt 1MB } ".repeat(40);
+        chat.approval = Some(isle_core::chat::Approval { title: "Algo longo".into(), command: long });
+        assert!(!run(&chat), "too long to see whole: only Negar");
+        assert!(hitboxes(0., 0., w, h, &chat).iter().any(|b| b.action == UiAction::AiDeny));
+        let card = approval_card(w, h, &chat).unwrap();
+        assert!(card.top > crate::layout::BODY, "the card stays under the header");
+    }
     #[test]
     fn chat_controls_fit_and_have_no_overlapping_targets() {
         let mut chat = Chat::default();

@@ -3,6 +3,7 @@
 // Copyright (C) 2026 zickrian. Windows input reuses Avisos Reply/WM_CHAR/keyboard capture.
 use super::*;
 use isle_ai::assistant::{Command, Update};
+use isle_core::state::AiProviderKind;
 impl IsleApp {
     pub(super) fn close_ai_input(&mut self) {
         if self.chat_window.take().is_some() {
@@ -60,6 +61,66 @@ impl IsleApp {
             self.state.chat.generation = self.state.chat.generation.wrapping_add(1);
         }
     }
+    /// The model the chat asks `p` for, as the settings have it (empty: the CLI's default).
+    pub(super) fn chat_model(&self, p: AiProviderKind) -> &str {
+        match p {
+            AiProviderKind::ClaudeCode => &self.config.ai_claude_model,
+            AiProviderKind::Codex => &self.config.ai_codex_model,
+            AiProviderKind::OpenCodeGo => &self.config.ai_opencode_model,
+        }
+    }
+    /// The open provider's tab names its model ("Claude · Opus").
+    pub(super) fn sync_model_label(&mut self) {
+        let p = self.state.chat.provider;
+        let id = self.chat_model(p).to_owned();
+        self.state.chat.model_label = if id.is_empty() { String::new() } else {
+            self.ai_models.iter().find(|(q, _)| *q == p)
+                .and_then(|(_, list)| list.iter().find(|m| m.id == id).map(|m| m.name.clone()))
+                .unwrap_or(id)
+        };
+    }
+    /// Asks each provider's CLI for its models, once a run (Claude's are known; the others ask the CLI).
+    pub(super) fn ask_models(&mut self) {
+        let Some(tx) = &self.chat_tx else { return };
+        for p in [AiProviderKind::ClaudeCode, AiProviderKind::Codex, AiProviderKind::OpenCodeGo] {
+            if self.ai_models_asked.contains(&p) { continue; }
+            if p == AiProviderKind::OpenCodeGo && self.config.opencode_api_key.as_deref().is_none_or(|k| k.trim().is_empty()) { continue; }
+            self.ai_models_asked.push(p);
+            let _ = tx.send(Command::Models(p));
+        }
+    }
+    /// The open provider's tab touched again: its next model, then back to the default.
+    fn next_model(&mut self) {
+        let p = self.state.chat.provider;
+        let ids: Vec<String> = self.ai_models.iter().find(|(q, _)| *q == p)
+            .map(|(_, list)| list.iter().map(|m| m.id.clone()).collect()).unwrap_or_default();
+        if ids.is_empty() { return; }
+        let now = self.chat_model(p).to_owned();
+        let next = match ids.iter().position(|id| *id == now) {
+            Some(i) if i + 1 < ids.len() => ids[i + 1].clone(),
+            Some(_) => String::new(),
+            None => ids[0].clone(),
+        };
+        let old = self.config.clone();
+        match p {
+            AiProviderKind::ClaudeCode => self.config.ai_claude_model = next,
+            AiProviderKind::Codex => self.config.ai_codex_model = next,
+            AiProviderKind::OpenCodeGo => self.config.ai_opencode_model = next,
+        }
+        self.apply_config(&old, true);
+    }
+    /// Executar or Negar on the command the assistant asks to run.
+    fn answer_command(&mut self, run: bool) {
+        // Executar only for a command the card shows whole (button, Enter or any other way here), at the
+        // size the card is drawn: the island showing the chat, as it settles.
+        if run && !self.islands.iter().filter(|i| i.mode == PillMode::Expanded(TabPage::AiHub)).any(|i| {
+            isle_render::chat::approval_card(i.geom.width.target, i.geom.height.target, &self.state.chat).is_some_and(|card| card.lines.is_some())
+        }) { return; }
+        if self.state.chat.approval.take().is_none() { return; }
+        if let Some(tx) = &self.chat_tx {
+            let _ = tx.send(Command::Approve { generation: self.state.chat.generation, run });
+        }
+    }
     fn send_ai(&mut self) {
         let Some(tx) = &self.chat_tx else {
             self.state.chat.error = Some("Serviço de chat indisponível.".into());
@@ -71,6 +132,7 @@ impl IsleApp {
                     generation,
                     items,
                     provider: self.state.chat.provider,
+                    model: self.chat_model(self.state.chat.provider).to_owned(),
                 })
                 .is_err()
             {
@@ -84,9 +146,29 @@ impl IsleApp {
         }
     }
     pub(super) fn apply_ai_update(&mut self, update: Update) {
+        if let Some((provider, listed)) = update.models {
+            match listed {
+                Ok(models) => {
+                    self.ai_models.retain(|(p, _)| *p != provider);
+                    self.ai_models.push((provider, models));
+                }
+                // Asked again the next time the chat or the settings open.
+                Err(err) => {
+                    tracing::info!("modelos de {}: {err}", isle_core::chat::provider_name(provider));
+                    self.ai_models_asked.retain(|p| *p != provider);
+                }
+            }
+            self.sync_model_label();
+            self.refresh_settings_view();
+            return;
+        }
+        let current = update.generation == self.state.chat.generation && self.state.chat.busy;
         self.state
             .chat
             .update(update.generation, &update.text, update.done, update.error);
+        if current && !update.done {
+            self.state.chat.approval = update.approval;
+        }
     }
     pub(super) fn ai_scroll(&mut self, delta: i32) {
         // Clamp using the same line calculation as drawing, so long upward scrolling can always return.
@@ -109,6 +191,7 @@ impl IsleApp {
                 }
                 self.state.chat.open = true;
                 self.island(island).toggle(Some(TabPage::AiHub));
+                self.ask_models();
                 self.focus_ai(island);
             }
             UiAction::AiInput => self.focus_ai(island),
@@ -136,8 +219,12 @@ impl IsleApp {
             UiAction::AiProvider(p) if p != self.state.chat.provider => {
                 self.stop_ai();
                 self.state.chat.reset(p);
+                self.sync_model_label();
                 self.focus_ai(island);
             }
+            UiAction::AiProvider(_) if !self.state.chat.busy => self.next_model(),
+            UiAction::AiRun => self.answer_command(true),
+            UiAction::AiDeny => self.answer_command(false),
             UiAction::AiScroll(delta) => self.ai_scroll(delta),
             _ => {}
         }
@@ -151,6 +238,10 @@ impl IsleApp {
             return;
         }
         match ch {
+            // A command waiting: Enter runs it, Esc denies it (isle's card).
+            // Enter runs only what Executar would (answer_command checks the card).
+            '\r' if self.state.chat.approval.is_some() => self.answer_command(true),
+            '\u{1b}' if self.state.chat.approval.is_some() => self.answer_command(false),
             '\u{1b}' => self.close_ai_input(),
             _ if self.state.chat.busy => {}
             '\r' => self.send_ai(),
@@ -173,7 +264,7 @@ mod tests {
         app.apply_ui_action(UiAction::SwitchTab(TabPage::AiHub));
         app.apply_ui_action(UiAction::AiOpen);
         assert!(app.state.chat.open);
-        assert_eq!(app.islands[0].geom.height.target, 450.0);
+        assert_eq!(app.islands[0].geom.height.target, isle_render::layout::PANEL.1);
         for ch in "ação 😀!\u{8}".chars() {
             app.apply_input(UiInput::Char { window: 0, ch }).unwrap();
         }
@@ -184,7 +275,7 @@ mod tests {
         assert_eq!(app.state.chat.input.text, "ação 😀");
         app.apply_ui_action(UiAction::SwitchTab(TabPage::AiHub));
         app.apply_ui_action(UiAction::AiBack);
-        assert_eq!(app.islands[0].geom.height.target, 450.0);
+        assert_eq!(app.islands[0].geom.height.target, isle_render::layout::PANEL.1);
     }
     #[test]
     fn missing_worker_is_visible_and_escape_preserves_draft() {
@@ -215,9 +306,11 @@ mod tests {
             ch: '\r',
         })
         .unwrap();
-        let Command::Ask {
+        // Opening the chat asks the CLIs for their models first.
+        let request = std::iter::from_fn(|| rx.try_recv().ok()).find(|c| matches!(c, Command::Ask { .. }));
+        let Some(Command::Ask {
             generation, items, ..
-        } = rx.try_recv().unwrap()
+        }) = request
         else {
             panic!("expected request")
         };
@@ -230,6 +323,7 @@ mod tests {
             text: "partial".into(),
             done: false,
             error: None,
+            ..Default::default()
         });
         app.apply_ui_action(UiAction::AiStop);
         assert!(matches!(rx.try_recv().unwrap(), Command::Cancel));
@@ -238,6 +332,7 @@ mod tests {
             text: "late final".into(),
             done: true,
             error: None,
+            ..Default::default()
         });
         assert_eq!(app.state.chat.items.last().unwrap().text, "partial");
         assert!(!app.state.chat.busy);
@@ -250,8 +345,54 @@ mod tests {
             text: "old backend".into(),
             done: true,
             error: None,
+            ..Default::default()
         });
         assert!(app.state.chat.items.is_empty());
+    }
+    #[test]
+    fn a_command_waits_for_enter_or_esc_and_nothing_else_runs_it() {
+        let mut app = IsleApp::new(IsleConfig::default());
+        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        app.chat_tx = Some(tx);
+        app.apply_ui_action(UiAction::AiOpen);
+        app.state.chat.input.text = "instala o node pra mim".into();
+        app.apply_input(UiInput::Char { window: 0, ch: '\r' }).unwrap();
+        let generation = app.state.chat.generation;
+        while rx.try_recv().is_ok() {}
+        let ask = isle_core::chat::Approval { title: "Instalar o nvm".into(), command: "winget install CoreyButler.NVMforWindows".into() };
+        app.apply_ai_update(Update { generation, text: "Vou instalar.".into(), approval: Some(ask.clone()), ..Default::default() });
+        assert_eq!(app.state.chat.approval.as_ref(), Some(&ask));
+        app.apply_input(UiInput::Char { window: 0, ch: 'x' }).unwrap();
+        assert!(rx.try_recv().is_err(), "typing does not answer it");
+        app.apply_input(UiInput::Char { window: 0, ch: '\r' }).unwrap();
+        assert!(matches!(rx.try_recv().unwrap(), Command::Approve { generation: g, run: true } if g == generation));
+        assert!(app.state.chat.approval.is_none());
+        app.apply_ai_update(Update { generation, text: "✓ Instalar o nvm".into(), approval: Some(ask), ..Default::default() });
+        app.apply_input(UiInput::Char { window: 0, ch: '\u{1b}' }).unwrap();
+        assert!(matches!(rx.try_recv().unwrap(), Command::Approve { run: false, .. }));
+        let hidden = isle_core::chat::Approval { title: "Ver".into(), command: "echo ok\u{200B}; Remove-Item C:/x".into() };
+        app.apply_ai_update(Update { generation, text: "…".into(), approval: Some(hidden), ..Default::default() });
+        app.apply_input(UiInput::Char { window: 0, ch: '\r' }).unwrap();
+        assert!(rx.try_recv().is_err(), "Enter never runs what the card cannot show whole");
+        app.apply_input(UiInput::Char { window: 0, ch: '\u{1b}' }).unwrap();
+        assert!(matches!(rx.try_recv().unwrap(), Command::Approve { run: false, .. }));
+        app.apply_ai_update(Update { generation, text: "Ok.".into(), done: true, ..Default::default() });
+        assert!(!app.state.chat.busy && app.state.chat.approval.is_none());
+    }
+    #[test]
+    fn touching_the_open_provider_again_picks_its_next_model() {
+        let mut app = IsleApp::new(IsleConfig::default());
+        app.apply_ai_update(Update { models: Some((AiProviderKind::ClaudeCode, Ok(vec![
+            isle_core::chat::ModelChoice { id: "opus".into(), name: "Opus".into() },
+            isle_core::chat::ModelChoice { id: "haiku".into(), name: "Haiku".into() },
+        ]))), ..Default::default() });
+        app.apply_ui_action(UiAction::AiOpen);
+        let picks: Vec<String> = (0..3).map(|_| {
+            app.apply_ui_action(UiAction::AiProvider(AiProviderKind::ClaudeCode));
+            app.state.chat.model_label.clone()
+        }).collect();
+        assert_eq!(picks, ["Opus", "Haiku", ""], "then back to the default");
+        assert_eq!(app.config.ai_claude_model, "");
     }
     #[test]
     fn only_the_input_owner_is_kept_open_and_keyboard_loss_releases_it() {

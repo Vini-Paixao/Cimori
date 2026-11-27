@@ -63,6 +63,7 @@ impl IsleApp {
                 self.settings.view.tab = SettingsTab::Welcome;
             }
         }
+        self.ask_models();
         self.refresh_settings_view();
         if !cfg!(test) {
             if let Err(err) = self.settings.window.open(self.config.settings_window.as_ref()) {
@@ -96,7 +97,21 @@ impl IsleApp {
             .filter(|i| !i.exe_path.is_empty())
             .map(|i| (i.exe_path.clone(), i.display_name.clone()))
             .collect();
-        self.settings.view.dynamic = vec![("muted_apps", seen), ("pinned_tray_apps", tray)];
+        // The apps with a window open now, for "hide_apps": keyed by exe name, shown by their own name.
+        #[cfg(windows)]
+        let windowed: Vec<(String, String)> = if cfg!(test) { Vec::new() } else {
+            isle_render::window::window_apps().iter()
+                .map(|path| (isle_render::window::app_key(path), isle_platform_win::tray::program_name(path)))
+                .collect()
+        };
+        #[cfg(not(windows))]
+        let windowed = Vec::new();
+        // The chat's models, as each CLI listed them.
+        let models = |p| self.ai_models.iter().find(|(q, _)| *q == p)
+            .map(|(_, list)| list.iter().map(|m| (m.id.clone(), m.name.clone())).collect::<Vec<_>>()).unwrap_or_default();
+        let (codex, opencode) = (models(isle_core::state::AiProviderKind::Codex), models(isle_core::state::AiProviderKind::OpenCodeGo));
+        self.settings.view.dynamic = vec![("muted_apps", seen), ("pinned_tray_apps", tray), ("hide_apps", windowed),
+            ("ai_codex_model", codex), ("ai_opencode_model", opencode)];
         let hooks = if isle_ai::agents::claude::hooked(&isle_ai::agents::claude::settings_path()) { "Instalados" } else { "Não instalados" };
         // The agents' folders (~/.claude, ~/.codex) say they are installed.
         let agent = |path: std::path::PathBuf, hooked: fn(&std::path::Path) -> bool| {

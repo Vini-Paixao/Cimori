@@ -5,7 +5,7 @@ mod layout;
 pub use layout::{CardBox, Hit, Layout, NavEntry, RowBox, action_label, chip_items, control_rect, desc_lines, hit, layout, monitor_rects, name_room, slider_value};
 pub use layout::DESC;
 pub use layout::{HEADER, NAV_NARROW, NAV_W};
-pub use layout::{listed, strip_pref};
+pub use layout::{listed, ordered, strip_pref};
 
 use crate::window::MonitorPlace;
 use isle_core::prefs::{ActionId, SettingsTab};

@@ -6,12 +6,13 @@
 use super::*;
 
 impl PillRenderer {
-    /// A ring, full at `fraction` (clockwise from the top).
-    pub(super) fn ring(&mut self, cx: f32, cy: f32, r: f32, fraction: f32, color: Color) {
+    /// A ring `width` thick, full at `fraction` (clockwise from the top).
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn ring(&mut self, cx: f32, cy: f32, r: f32, fraction: f32, color: Color, width: f32) {
         let s = self.scale;
         let mut paint = Paint::default();
         paint.anti_alias = true;
-        let stroke = Stroke { width: 9.0 * s, line_cap: tiny_skia::LineCap::Round, ..Default::default() };
+        let stroke = Stroke { width: width * s, line_cap: tiny_skia::LineCap::Round, ..Default::default() };
         let arc = |from: f32, to: f32| {
             let mut pb = PathBuilder::new();
             let steps = (64.0 * (to - from)).ceil().max(2.0) as usize;

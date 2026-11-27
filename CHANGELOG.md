@@ -2,6 +2,48 @@
 
 Todas as mudanças relevantes da Cimori. Versões no formato [SemVer](https://semver.org/lang/pt-BR/).
 
+## [Não lançado]
+
+### Novo
+- **Sumir só na frente destes apps** (Esconder): marque os apps (ex.: Chrome, Edge) em que a ilha
+  atrapalha; ela some só quando um deles é a janela maximizada da frente no monitor, e continua
+  visível nos outros (VS Code, Claude...). A lista mostra os apps abertos agora. "Sumir com janela
+  maximizada" segue valendo para todos os apps.
+- **Mostrar com a ilha escondida por um app** (Avisos › Banners, ligada por padrão): com a ilha
+  sumida na frente de uma janela maximizada ou de um app marcado, banners e pedidos de permissão
+  aparecem mesmo assim. Jogos e vídeos em tela cheia continuam sem.
+
+### Mudou
+- **Cabeçalho do painel numa linha só**, como no isle: as abas à esquerda; à direita as barrinhas da
+  música (enquanto toca), o **mascote** no lugar da estrela (abre o chat), o anel de uso do Claude e/ou
+  do Codex (IA › Topo do painel; abre a aba Uso), a data, a hora, a engrenagem e a seta. O conteúdo de
+  todas as abas sobe 38 px; o "Editar" do Controle vai para essa linha.
+- **Modelo do chat**: Claude (Padrão, Opus, Sonnet, Haiku), Codex e OpenCode Go (os modelos que cada
+  CLI lista para o seu login) em IA › Modelos do chat; no chat, tocar de novo na aba do provedor troca o
+  modelo ("Claude · Opus").
+- **O assistente pode rodar comandos, só com a sua aprovação** (como no isle): ele pede um comando do
+  PowerShell, a ilha mostra o comando inteiro com **Negar (Esc)** e **Executar (Enter)**, e a saída volta
+  para ele continuar. Nada roda sem aprovação; um comando longo demais para mostrar inteiro só pode ser
+  negado.
+- **Barra fechada refeita**: os itens ficam lado a lado, na ordem da lista, sem o vão gigante no
+  meio; a pílula tem a largura dos itens ("Largura mínima da ilha fechada" vira o mínimo).
+- **Relógio no meio** como no mac-island: o relógio fica no centro e os outros itens se dividem dos
+  dois lados dele, na ordem da lista, onde os dois lados ficam mais parecidos. Antes, com o relógio
+  primeiro na lista, ficava tudo de um lado e a música sumia.
+- A barra não muda de largura a cada minuto/segundo que o relógio vira.
+- **Todas as abas da ilha aberta têm o mesmo tamanho** (620 × 470): trocar de aba não muda mais o
+  tamanho do notch (Clima e Controle eram mais largos, Música e Bandeja mais baixas).
+  Música e Bandeja ficam centralizadas na altura nova.
+
+### Corrigido
+- O card "Na barra" editava a lista do outro estilo (barra × entalhe) e não mudava nada na pílula;
+  agora a ordem é editada só na prévia, que é a lista em uso.
+- Foco e Pausa do Pomodoro e o Tempo padrão do Timer, mudados nas configurações, só valiam depois de
+  reiniciar a Cimori; agora valem na hora. Os sliders vão até onde os botões da ilha vão (180 e 60 min).
+- Os switches **Claude Code** e **Codex** (IA › Agentes) não faziam nada sozinhos: desligar um deles
+  agora tira as cotas dele da ilha e da aba Uso, na hora e sem reiniciar.
+- Teste novo muda cada configuração, grava o settings.json e lê de volta, para nenhuma se perder.
+
 ## [1.0.1] — 2026-11-23
 
 ### Novo
