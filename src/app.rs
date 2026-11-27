@@ -2774,8 +2774,9 @@ END:VCALENDAR");
 
     #[test]
     fn music_bars_on_the_open_header_get_frames_while_it_plays() {
-        isle_render::window::set_animation_level(isle_core::config::AnimationLevel::On);
         let mut app = IsleApp::new(IsleConfig::default());
+        // After `new`, which sets the config's level ("System": off on the CI's Windows Server).
+        isle_render::window::set_animation_level(isle_core::config::AnimationLevel::On);
         app.islands[0].mode = PillMode::Expanded(TabPage::ControlCenter);
         app.state.media = Some(isle_core::state::MediaInfo { artwork: None, title: "a".into(), artist: "b".into(),
             playing: true, position_ms: 0, duration_ms: 200_000, sampled_at_ms: 0 });
