@@ -29,6 +29,7 @@ pub mod weather;
 pub mod timers;
 pub mod chat;
 pub mod data_dir;
+pub mod i18n;
 
 pub mod artwork;
 pub mod clock;

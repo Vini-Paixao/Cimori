@@ -2,8 +2,14 @@
 use crate::agenda::civil_from_days;
 use crate::config::{DateOrder, IsleConfig};
 
-pub const WEEKDAYS: [&str; 7] = ["qui", "sex", "sáb", "dom", "seg", "ter", "qua"]; // 1970-01-01 was a Thursday
-const MONTHS: [&str; 12] = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+/// The short weekday of `days` since 1970 (a Thursday), in the language now.
+pub fn weekday_short(days: i64) -> &'static str {
+    crate::i18n::nth("date.weekdays_short", (days + 4).rem_euclid(7) as usize)
+}
+/// The short name of `month` (1-12).
+pub fn month_short(month: u32) -> &'static str {
+    crate::i18n::nth("date.months_short", month.saturating_sub(1) as usize)
+}
 
 /// `local_secs`: seconds since 1970 in local time.
 pub fn clock_text(local_secs: i64, cfg: &IsleConfig) -> String {
@@ -27,10 +33,10 @@ pub fn date_text(local_secs: i64, cfg: &IsleConfig) -> String {
     let (y, mo, d) = civil_from_days(days);
     let mut parts = Vec::new();
     if cfg.clock_weekday {
-        parts.push(WEEKDAYS[days.rem_euclid(7) as usize].to_string());
+        parts.push(weekday_short(days).to_string());
     }
     if cfg.clock_date {
-        let month = MONTHS[(mo - 1) as usize];
+        let month = month_short(mo as u32);
         let month_first = cfg.date_order == DateOrder::MonthDay;
         let date = match (cfg.month_number, month_first) {
             (true, false) => format!("{d:02}/{mo:02}"),

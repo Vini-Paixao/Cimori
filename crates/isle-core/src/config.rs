@@ -23,6 +23,8 @@ pub struct WeatherConfig {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct IsleConfig {
+    /// The interface's language, a code of i18n::LANGUAGES ("en-US"); empty: Windows' display language.
+    pub language: String,
     pub liquid_glass: bool,
     pub icon_pack: crate::icons::IconPack,
     pub icon_folder: String,
@@ -420,6 +422,7 @@ pub fn write_atomic(path: &Path, json: &str) -> std::io::Result<()> {
 impl Default for IsleConfig {
     fn default() -> Self {
         Self {
+            language: String::new(),
             icon_pack: Default::default(),
             liquid_glass: false,
             icon_folder: String::new(),

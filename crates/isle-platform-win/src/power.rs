@@ -4,6 +4,7 @@
 // EnableShutdownPrivilege, IsFastStartupOn, IsHibernateAllowed, HasClassicSleep). `run` is the only
 // place that touches Windows: tests check the flags it would use, never call it.
 
+use isle_core::i18n::{tr};
 use anyhow::Result;
 use isle_core::power::PowerAction;
 
@@ -116,7 +117,7 @@ mod win {
                 let slept = (hibernate || has_classic_sleep())
                     && unsafe { SetSuspendState(BOOLEAN(hibernate as u8), BOOLEAN(0), BOOLEAN(0)).as_bool() };
                 if !slept {
-                    anyhow::ensure!(!hibernate, "o Windows recusou hibernar");
+                    anyhow::ensure!(!hibernate, "{}", tr("errors.hibernate"));
                     // Modern Standby sleeps by turning the screen off, as Start → Suspender does.
                     unsafe { PostMessageW(HWND_BROADCAST, WM_SYSCOMMAND, WPARAM(SC_MONITORPOWER as usize), LPARAM(2))? };
                 }

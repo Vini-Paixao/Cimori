@@ -12,7 +12,8 @@
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use isle_core::state::{UsageProvider as Provider, UsageWindow as Window};
+use isle_core::i18n::trn;
+use isle_core::state::{UsageProvider as Provider, UsageWindow as Window, FROM_CODEX};
 use serde_json::Value;
 
 /// Codex's local logs are read each minute; Claude and ChatGPT are asked every 10, Claude backing off to
@@ -66,15 +67,14 @@ enum ClaudeError {
 }
 
 impl ClaudeError {
+    /// A key of locales/, shown in the language of the moment.
     fn note(self) -> &'static str {
         match self {
-            ClaudeError::NeedsRefresh => "Login do Claude vencido; renovando em instantes",
-            ClaudeError::Expired => {
-                "Login do Claude vencido neste PC: abra o Claude Code aqui ou ligue \"Renovar o login do Claude sozinha\" nas configurações"
-            }
-            ClaudeError::SignIn => "Entre de novo no Claude Code",
-            ClaudeError::Offline => "Sem internet; últimos números",
-            ClaudeError::Busy => "Claude não respondeu; últimos números",
+            ClaudeError::NeedsRefresh => "usage.claude_renewing",
+            ClaudeError::Expired => "usage.claude_expired",
+            ClaudeError::SignIn => "usage.claude_sign_in",
+            ClaudeError::Offline => "usage.offline",
+            ClaudeError::Busy => "usage.claude_busy",
         }
     }
 
@@ -206,14 +206,15 @@ async fn read_claude(renew_login: bool) -> Result<Vec<Window>, ClaudeError> {
 }
 
 /// The limits Claude reports for this plan, in its order: "5 horas", "Semana", "Semana · Opus"…
+/// (as keys of locales/, a model after " · ": `window_text` shows them).
 fn claude_windows(response: &Value) -> Vec<Window> {
     if let Some(limits) = response["limits"].as_array() {
         return limits
             .iter()
             .filter_map(|limit| {
                 let label = match limit["group"].as_str().or(limit["kind"].as_str())? {
-                    "session" => "5 horas".to_owned(),
-                    "weekly" | "weekly_all" | "weekly_scoped" => "Semana".to_owned(),
+                    "session" => "usage.five_hours".to_owned(),
+                    "weekly" | "weekly_all" | "weekly_scoped" => "usage.week".to_owned(),
                     other => title_case(other),
                 };
                 let model = limit["scope"]["model"]["display_name"]
@@ -229,9 +230,9 @@ fn claude_windows(response: &Value) -> Vec<Window> {
     }
     // The older shape: one object per window.
     [
-        ("five_hour", "5 horas"),
-        ("seven_day", "Semana"),
-        ("seven_day_opus", "Semana · Opus"),
+        ("five_hour", "usage.five_hours"),
+        ("seven_day", "usage.week"),
+        ("seven_day_opus", "usage.week · Opus"),
     ]
     .iter()
     .filter_map(|(key, label)| {
@@ -311,7 +312,7 @@ fn codex_limits(file: &Path) -> Option<Provider> {
         plan: codex_plan(limits["plan_type"].as_str().unwrap_or_default()),
         windows: codex_windows(&limits),
         updated_ms: if at > 0 { at } else { modified },
-        note: "Do último uso do Codex".into(),
+        note: FROM_CODEX.into(),
     })
 }
 
@@ -352,11 +353,11 @@ fn codex_windows(limits: &Value) -> Vec<Window> {
 /// A window of `minutes` as people say it: "5 horas", "Semana", "30 dias".
 fn window_label(minutes: i64) -> String {
     match minutes {
-        300 => "5 horas".to_owned(),
-        10080 => "Semana".to_owned(),
-        m if m > 0 && m % 1440 == 0 => format!("{} dias", m / 1440),
-        m if m > 0 => format!("{} horas", (m + 30) / 60),
-        _ => "Limite".to_owned(),
+        300 => "usage.five_hours".to_owned(),
+        10080 => "usage.week".to_owned(),
+        m if m > 0 && m % 1440 == 0 => trn("usage.days", m / 1440, &[]),
+        m if m > 0 => trn("usage.hours", (m + 30) / 60, &[]),
+        _ => "usage.limit".to_owned(),
     }
 }
 
@@ -574,7 +575,7 @@ mod tests {
         let pro = json!({"plan_type": "prolite", "rate_limit": {
             "primary_window": {"used_percent": 5, "limit_window_seconds": 18_000, "reset_at": 10},
             "secondary_window": {"used_percent": 23, "limit_window_seconds": 604_800, "reset_at": 20}}});
-        let labels: Vec<String> = codex_live(&pro, 0).windows.into_iter().map(|w| w.label).collect();
+        let labels: Vec<String> = codex_live(&pro, 0).windows.into_iter().map(|w| w.text()).collect();
         assert_eq!(labels, ["5 horas", "Semana"]);
         assert_eq!((codex_live(&free, 0).plan, codex_live(&pro, 0).plan), ("Free".into(), "Pro".into()));
     }
@@ -599,12 +600,12 @@ mod tests {
              "scope": {"model": {"display_name": "Fable"}}}]});
         let windows = claude_windows(&team);
         assert_eq!(windows.len(), 2);
-        assert_eq!((windows[0].label.as_str(), windows[0].percent), ("5 horas", 21.0));
+        assert_eq!((windows[0].text().as_str(), windows[0].percent), ("5 horas", 21.0));
         assert_eq!(windows[0].resets_at_ms, rfc3339_ms("2026-10-21T16:10:00+00:00"));
-        assert_eq!(windows[1].label, "Semana · Fable");
+        assert_eq!(windows[1].text(), "Semana · Fable");
         let older = json!({"five_hour": {"utilization": 4.0, "resets_at": null}, "seven_day": {"utilization": 31.5},
             "seven_day_opus": null});
-        let labels: Vec<String> = claude_windows(&older).into_iter().map(|w| w.label).collect();
+        let labels: Vec<String> = claude_windows(&older).into_iter().map(|w| w.text()).collect();
         assert_eq!(labels, ["5 horas", "Semana"]);
     }
 
@@ -614,7 +615,7 @@ mod tests {
             "secondary": null, "plan_type": "prolite"});
         let windows = codex_windows(&pro);
         assert_eq!(windows.len(), 1);
-        assert_eq!((windows[0].label.as_str(), windows[0].percent), ("Semana", 9.0));
+        assert_eq!((windows[0].text().as_str(), windows[0].percent), ("Semana", 9.0));
         assert_eq!(windows[0].resets_at_ms, 1_793_084_579_000);
         let line = json!({"timestamp": "2026-10-21T08:59:00Z", "payload": {"info": {}, "rate_limits": pro}});
         assert_eq!(find_key(&line, "rate_limits").unwrap()["plan_type"], "prolite");
@@ -673,7 +674,8 @@ mod tests {
         assert_eq!(ClaudeError::SignIn.wait(), CLAUDE_BACKOFF);
         assert_eq!(ClaudeError::Expired.wait(), RETRY_SOON);
         // Off, the note says how to get the numbers back, so it never looks like a bug.
-        assert!(ClaudeError::Expired.note().contains("abra o Claude Code"));
-        assert!(ClaudeError::Expired.note().contains("Renovar o login do Claude sozinha"));
+        let note = isle_core::i18n::tr(ClaudeError::Expired.note());
+        assert!(note.contains("abra o Claude Code"));
+        assert!(note.contains("Renovar o login do Claude sozinha"));
     }
 }

@@ -168,11 +168,12 @@ pub const REMINDER_PRESETS: [u32; 3] = [15, 30, 60];
 /// Pending reminders listed on the tab.
 pub const REMINDER_ROWS: usize = 4;
 
+/// The Focus tab's modes and their names' keys in locales/.
 pub const TIMER_MODES: [(isle_core::timers::TimerMode, &str); 4] = [
-    (isle_core::timers::TimerMode::Pomodoro, "Pomodoro"),
-    (isle_core::timers::TimerMode::Countdown, "Timer"),
-    (isle_core::timers::TimerMode::Stopwatch, "Cronômetro"),
-    (isle_core::timers::TimerMode::Reminders, "Lembretes"),
+    (isle_core::timers::TimerMode::Pomodoro, "focus.pomodoro"),
+    (isle_core::timers::TimerMode::Countdown, "focus.timer"),
+    (isle_core::timers::TimerMode::Stopwatch, "focus.stopwatch"),
+    (isle_core::timers::TimerMode::Reminders, "focus.reminders"),
 ];
 /// The countdown's quick lengths (minutes).
 pub const TIMER_PRESETS: [u32; 4] = [5, 10, 15, 30];

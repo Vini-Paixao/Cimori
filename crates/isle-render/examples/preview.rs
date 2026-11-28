@@ -5,7 +5,8 @@
 // TrayListPanel/pinned icon previews adapted from Mac Island & Dock v3.1.1.
 
 //! Renders each pill mode to PNG, to see the island on Fedora without Windows:
-//! `cargo run -p isle-render --example preview -- <dir> [scale]` (1.5 for a 150% screen)
+//! `cargo run -p isle-render --example preview -- <dir> [scale]` (1.5 for a 150% screen); `CIMORI_LANG=en-US`
+//! for another language.
 
 use isle_core::config::IsleConfig;
 use isle_core::spring::PillGeometry;
@@ -29,6 +30,10 @@ fn main() {
 fn shots() {
     let dir = std::env::args().nth(1).unwrap_or_else(|| ".".into());
     std::fs::create_dir_all(&dir).expect("create preview folder");
+    // CIMORI_LANG=en-US draws the texts in another language of locales/ (pt-BR otherwise).
+    if let Ok(code) = std::env::var("CIMORI_LANG") {
+        isle_core::i18n::set(isle_core::i18n::resolve(&code, &[]));
+    }
     // ISLE_PREVIEW_ACCENT="0,200,0" draws everything with another accent color.
     if let Ok(v) = std::env::var("ISLE_PREVIEW_ACCENT") {
         let c: Vec<u8> = v.split(',').filter_map(|c| c.trim().parse().ok()).collect();

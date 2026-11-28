@@ -30,7 +30,7 @@ impl IsleApp {
         let generation = self.icons_work.generation;
         isle_render::icon_images::set_images(Arc::new(IconImages::default()));
         let pack = self.config.icon_pack;
-        self.icons_work.status = if pack==IconPack::Windows {"Ícones do Windows"}else{"Carregando ícones…"}.into();
+        self.icons_work.status = isle_core::i18n::tr(if pack==IconPack::Windows {"icons.windows"}else{"icons.loading"}).into();
         self.refresh_settings_view();self.settings.dirty=true;
         if pack == IconPack::Windows {return;}
         let (Some(Services {rt,tx,waker}),Some(root)) = (self.services.clone(),self.icons_root()) else {return};
@@ -45,14 +45,14 @@ impl IsleApp {
             let path = if pack == IconPack::Folder {PathBuf::from(&folder)} else {pack_path(&root,pack).unwrap()};
             send(&tx,&waker,AppEvent::Icons(Event::Loaded(generation,Arc::new(load_folder(&path,pack,folder.clone())))));
             let done = prepare(&root,pack,folder.clone(),|n,total| {
-                send(&tx,&waker,AppEvent::Icons(Event::Status(generation,format!("Baixando ícones: {n}/{total}"))));
+                send(&tx,&waker,AppEvent::Icons(Event::Status(generation,isle_core::i18n::trf("icons.downloading", &[("n", &n), ("total", &total)]))));
             }).await;
             let status = match done {
-                Ok(images) => { let n=images.pictures.len(); send(&tx,&waker,AppEvent::Icons(Event::Loaded(generation,Arc::new(images)))); format!("Pronto · {n} ícones; ausentes usam Windows") }
+                Ok(images) => { let n=images.pictures.len(); send(&tx,&waker,AppEvent::Icons(Event::Loaded(generation,Arc::new(images)))); isle_core::i18n::trf("icons.ready", &[("n", &n)]) }
                 Err(e) => {
                     tracing::warn!("ícones: {e:#}");
                     send(&tx,&waker,AppEvent::Icons(Event::Loaded(generation,Arc::new(load_folder(&path,pack,folder)))));
-                    "Não foi possível concluir. Use Recarregar para tentar novamente.".into()
+                    isle_core::i18n::tr("icons.failed").into()
                 }
             };
             send(&tx,&waker,AppEvent::Icons(Event::Status(generation,status)));
@@ -88,7 +88,7 @@ impl IsleApp {
                 anyhow::ensure!(target.parent()==Some(base.as_path()),"Pasta de cache inválida");
                 std::fs::remove_dir_all(target)?; Ok(())
             })();
-            let status=if result.is_ok(){"Pacote excluído"}else{"Não foi possível excluir o pacote"};
+            let status=isle_core::i18n::tr(if result.is_ok(){"icons.deleted"}else{"icons.delete_failed"});
             send(&tx,&waker,AppEvent::Icons(Event::Status(generation,status.into())));
         });
     }

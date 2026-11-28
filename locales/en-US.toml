@@ -1,0 +1,1565 @@
+# Cimori in English (en-US): the base language. Every other file has exactly these keys.
+# How to add a language: locales/README.md
+
+[tab]
+media = "Music"
+notifications = "Notifications"
+timer = "Focus"
+shelf = "Shelf"
+clipboard = "Clipboard"
+downloads = "Downloads"
+agenda = "Calendar"
+weather = "Weather"
+usb = "USB"
+control = "Controls"
+tray = "Tray"
+ai = "Usage"
+power = "Power"
+
+[bar]
+clock = "Clock"
+next = "Up next"
+date = "Date"
+media = "Music"
+weather = "Weather"
+notifications = "Notifications"
+timer = "Timer"
+tray = "Tray"
+power = "Power"
+
+[tile]
+wifi = "Wi-Fi"
+bluetooth = "Bluetooth"
+dnd = "Do Not Disturb"
+night = "Night light"
+project = "Project"
+cast = "Cast"
+captions = "Live captions"
+accessibility = "Accessibility"
+taskmgr = "Task Manager"
+explorer = "File Explorer"
+windowsSettings = "Settings"
+power = "Power"
+hotspot = "Mobile hotspot"
+airplane = "Airplane mode"
+darkMode = "Dark mode"
+screenshot = "Screenshot"
+lock = "Lock"
+calculator = "Calculator"
+emoji = "Emoji"
+clipboard = "Clipboard"
+showDesktop = "Show desktop"
+onScreenKeyboard = "On-screen keyboard"
+touchKeyboard = "Touch keyboard"
+winXMenu = "Win+X menu"
+microphone = "Microphone"
+display = "Brightness"
+battery = "Battery"
+powermode = "Power mode"
+drives = "USB drives"
+recycleBin = "Recycle Bin"
+timer = "Timer"
+pomodoro = "Pomodoro"
+alarms = "Alarms"
+stopwatch = "Stopwatch"
+weather = "Weather"
+nextEvent = "Next event"
+
+[date]
+# Sunday first; then January first.
+weekdays_short = "Sun|Mon|Tue|Wed|Thu|Fri|Sat"
+months_short = "Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec"
+
+[weather]
+clear = "Clear sky"
+partly = "Partly cloudy"
+cloudy = "Cloudy"
+rain = "Rain"
+drizzle = "Drizzle"
+snow = "Snow"
+sleet = "Freezing rain"
+thunder = "Thunderstorm"
+fog = "Fog"
+
+[usage]
+claude_renewing = "Claude sign-in expired; renewing it now"
+claude_expired = "Claude sign-in expired on this PC: open Claude Code here or turn on \"Renew the Claude sign-in for me\" in settings"
+claude_sign_in = "Sign in to Claude Code again"
+offline = "No internet; showing the last numbers"
+claude_busy = "Claude didn't answer; showing the last numbers"
+five_hours = "5 hours"
+week = "Week"
+days.one = "{n} day"
+days.other = "{n} days"
+hours.one = "{n} hour"
+hours.other = "{n} hours"
+limit = "Limit"
+plan = "Plan"
+from_codex = "From Codex's last use"
+from_codex_at = "From Codex, {when}"
+updated_at = "Updated {when}"
+renews_soon = "resets soon"
+renewing = "resetting"
+renews_d = "resets in {d}d"
+renews_dh = "resets in {d}d {h}h"
+renews_h = "resets in {h}h"
+renews_hm = "resets in {h}h {m}m"
+renews_m = "resets in {m}m"
+no_limits = "No limits reported yet"
+back = "{name} is back!"
+
+[chat]
+placeholder = "Ask anything…"
+empty_title = "What are we doing today?"
+empty_sub = "An idea, a question, the next step."
+command_refused = "Command too long or with hidden characters."
+command_refused_hint = "Deny it and ask for a shorter one."
+deny = "Deny"
+run = "Run"
+run_command = "Run a command"
+answering = "Answering…"
+hint = "Enter sends · Esc releases the keyboard"
+hint_approval = "Waiting for your approval · Enter runs · Esc denies"
+working = "Your AI is working…"
+idea_plan = "Today's plan"
+idea_plan_words = "What's on my calendar today?"
+idea_install = "Install an app…"
+idea_install_words = "Install "
+idea_find = "Find a file…"
+idea_find_words = "Find "
+you = "You"
+notice = "Notice"
+click_to_type = "Click the text box to type: {err}"
+stopped = "Answer stopped."
+unavailable = "Chat service unavailable."
+ended = "Chat service stopped."
+
+[assistant]
+no_stdin = "CLI has no stdin"
+no_stdout = "CLI has no stdout"
+no_stderr = "CLI has no stderr"
+no_handle = "CLI has no handle"
+input_closed = "CLI closed its input"
+bad_event = "Invalid JSON event from the CLI"
+codex_no_thread = "Codex didn't open a conversation"
+codex_ended = "Codex quit before answering ({err})"
+cli_exited = "CLI exited with {status}: {err}"
+cli_stopped = "CLI stopped before finishing: {err}"
+no_text = "The assistant returned no text: {err}"
+opencode_key = "Add your OpenCode Go key in Settings → AI"
+opencode_models_slow = "OpenCode took too long to list its models"
+opencode_slow = "OpenCode took too long to start"
+opencode_version = "Unknown OpenCode version"
+opencode_update = "Update OpenCode to 1.4.8 or later"
+opencode_no_models = "The CLI listed no opencode-go models for this sign-in"
+models_too_long = "Model list too large"
+models_slow = "The CLI took too long to list its models."
+event_too_long = "Assistant event over 1 MiB"
+not_utf8 = "Assistant event isn't UTF-8"
+no_node = "Node.js not found for the npm CLI"
+cli_missing = "{name} not found. Install the CLI and sign in from a terminal."
+cli_start_failed = "Couldn't start the CLI"
+answer_too_long = "The answer hit the 32 KiB limit"
+stopped = "The assistant stopped without answering"
+timeout = "The assistant took more than 3 minutes. Try again."
+step_refused = "✗ {title} (refused: too long or with hidden characters)"
+step_denied = "✗ {title} (denied)"
+run_failed = "Couldn't run it: {err}"
+
+# The settings window.
+[settings]
+language_system = "System"
+restart_note = "Takes effect when Cimori restarts"
+group_island = "Island"
+group_modules = "Modules"
+group_cimori = "Cimori"
+step = "Step {n} of {total} · {title}"
+search_title = "Search"
+search_placeholder = "Search settings"
+confirm = "Confirm?"
+press_keys = "Press the keys…"
+hooks_installed = "Installed"
+hooks_not_installed = "Not installed"
+agent_hooked = "Hooks installed"
+agent_found = "Found, no hooks"
+agent_missing = "Not found"
+bridge_on = "On"
+bridge_needs_tray = "Turn on Tray to detect it"
+bridge_missing = "Not found"
+version = "Version {version}"
+update_unchecked = "Not checked yet"
+restored = "Settings restored"
+hooks_done = "Hooks installed"
+hooks_removed = "Hooks removed"
+hooks_failed = "Couldn't change the hooks"
+backup_exported = "Backup exported"
+backup_imported = "Backup imported"
+export_failed = "Couldn't export"
+not_a_backup = "That file isn't a Cimori backup"
+searching = "Searching…"
+no_city = "No city with that name"
+city_offline = "No connection to search for the city"
+window_title = "Cimori — Settings"
+preview = "PREVIEW"
+shortcut_needs_modifier = "Use Win, Ctrl or Alt with a key"
+bridge_copied = "Bridge code copied: paste it into Windhawk"
+bridge_copy_failed = "Couldn't copy the code"
+
+[button]
+open_folder = "Open folder"
+quit = "Quit"
+install_hooks = "Install hooks"
+remove = "Remove"
+export = "Export"
+import = "Import"
+restore = "Restore"
+pick_folder = "Choose folder"
+delete = "Delete"
+reload = "Reload"
+open_notifications = "Open notifications"
+see_instructions = "See instructions"
+report = "Report"
+open_github = "Open on GitHub"
+read_license = "Read the license"
+open_site = "Open website"
+check = "Check"
+open = "Open"
+update = "Update"
+back = "Back"
+next = "Next"
+finish = "Finish"
+show = "Show"
+copy_bridge = "Copy the bridge's code"
+
+[choice]
+your_folder = "Your folder"
+day_month = "Day and month"
+month_day = "Month and day"
+mouse_away = "Mouse away"
+window_maximized = "Maximized window"
+window_over = "Window on top"
+follow_windows = "Follow Windows"
+on = "On"
+off = "Off"
+both = "Both"
+neither = "Neither"
+default = "Default"
+pill = "Pill"
+notch = "Notch"
+
+[placeholder]
+icon_folder = "Folder with PNG and SVG"
+generated = "Generated automatically"
+windows_region = "Windows region"
+
+# The welcome's steps.
+[welcome_step]
+hello = "Welcome"
+look = "Look"
+agents = "AI agents"
+bridge = "Windhawk bridge"
+done = "All set"
+
+[settings_tab.general]
+title = "General"
+subtitle = "Cimori and the agent server"
+[settings_tab.bar]
+title = "Bar"
+subtitle = "What the pill shows when closed"
+[settings_tab.look]
+title = "Appearance"
+subtitle = "The island's colors"
+[settings_tab.icons]
+title = "Icons"
+subtitle = "Icon packs and images"
+[settings_tab.monitors]
+title = "Position and monitors"
+subtitle = "Where the islands appear"
+[settings_tab.hiding]
+title = "Hiding"
+subtitle = "When the pill turns into a line"
+[settings_tab.animations]
+title = "Animations"
+subtitle = "How the island moves"
+[settings_tab.ai]
+title = "AI and agents"
+subtitle = "Claude Code, Codex and OpenCode"
+[settings_tab.control]
+title = "Control center"
+subtitle = "Buttons, volume and audio outputs"
+[settings_tab.agenda]
+title = "Calendar"
+subtitle = "Calendar, holidays and reminders"
+[settings_tab.weather]
+title = "Weather"
+subtitle = "City and unit"
+[settings_tab.media]
+title = "Media"
+subtitle = "What's playing"
+[settings_tab.notifications]
+title = "Notifications"
+subtitle = "Windows notifications on the island"
+[settings_tab.focus]
+title = "Focus and timers"
+subtitle = "Pomodoro and timer"
+[settings_tab.tray]
+title = "Tray"
+subtitle = "Other apps' icons"
+[settings_tab.clipboard]
+title = "Clipboard"
+subtitle = "Local history of copied items"
+[settings_tab.shelf]
+title = "Shelf"
+subtitle = "Stored files and sharing by QR code"
+[settings_tab.usb]
+title = "USB devices"
+subtitle = "Open and eject USB drives"
+[settings_tab.downloads]
+title = "Downloads"
+subtitle = "Download activity in Windows"
+[settings_tab.shortcuts]
+title = "Shortcuts"
+subtitle = "Cimori's keys"
+[settings_tab.backup]
+title = "Backup"
+subtitle = "Save and restore your settings"
+[settings_tab.updates]
+title = "Updates"
+subtitle = "New versions of Cimori"
+[settings_tab.about]
+title = "About"
+subtitle = "Version and credits"
+[settings_tab.welcome]
+title = "Welcome"
+subtitle = "Getting started with Cimori"
+
+# The settings' rows: name, description (desc) and extra search words (words).
+[pref.language]
+name = "Language"
+desc = "System follows the Windows display language"
+words = "language idioma portuguese english português inglês"
+
+# Every module's switch and every link share these.
+[pref.module]
+desc = "When off, it leaves the island and the bar and stops fetching data"
+words = "module show hide turn on off"
+
+[pref.link]
+words = "link website"
+
+[pref.liquid_glass]
+name = "Liquid Glass"
+desc = "Glass with Windows blur, a glow and a lit edge"
+words = "glass transparency blur"
+
+[pref.icon_pack]
+name = "Interface icons"
+desc = "Online packs are downloaded once, when picked. Missing icons use the Windows ones."
+words = "lucide fluent ionicons tabler phosphor material bootstrap iconoir heroicons segoe"
+
+[pref.icon_folder]
+name = "Icon folder"
+desc = "PNG or SVG: the icon's name or its Segoe code, like E713.svg"
+words = "path images folder"
+
+[pref.action.icon_folder]
+name = "Choose folder"
+desc = "Opens the Windows folder picker"
+words = "folder images"
+
+[pref.action.reload_icons]
+name = "Reload icons"
+desc = "Refreshes the images or retries what failed to download"
+words = "refresh retry"
+
+[pref.action.delete_icon_pack]
+name = "Delete downloaded pack"
+desc = "Goes back to the Windows icons"
+words = "remove cache disk"
+
+[pref.info.icons]
+name = "Download"
+
+[pref.info.icon_credits]
+name = "Authors and licenses"
+
+[pref.action.open_folder]
+name = "Settings folder"
+desc = "Where settings.json and the logs live"
+words = "file json log folder"
+
+[pref.start_with_windows]
+name = "Start with Windows"
+desc = "Opens Cimori when you sign in"
+words = "startup login automatic boot"
+
+[pref.action.quit]
+name = "Quit Cimori"
+desc = "Closes the island"
+words = "close exit quit"
+
+[pref.ui.open_tab]
+name = "Tab on open"
+desc = "The page the island shows when it opens"
+words = "tab page start open music usage"
+
+[pref.hook_port]
+name = "Port"
+desc = "Where Claude Code and Codex reach the island"
+words = "hooks port network tailscale"
+
+[pref.hooks_local_only]
+name = "Only this machine and Tailscale"
+desc = "Refuses connections from other machines on the network"
+words = "security network local tailscale"
+
+[pref.bar_items]
+name = "On the bar"
+desc = "Drag to reorder, drag out to remove"
+words = "order items icons pill bar"
+
+[pref.ui.clock_center]
+name = "Clock in the middle"
+desc = "The other items rearrange on both sides of it, in the list's order"
+words = "clock center middle align"
+
+[pref.bar_quota_strip]
+name = "AI quota bars"
+desc = "Under the pill"
+words = "usage ai claude codex limit quota"
+
+[pref.clock_24h]
+name = "Format"
+words = "clock time hour am pm"
+
+[pref.clock_seconds]
+name = "Seconds"
+words = "clock time"
+
+[pref.clock_weekday]
+name = "Day of the week"
+words = "clock date weekday"
+
+[pref.clock_date]
+name = "Day and month"
+words = "clock date"
+
+[pref.clock_year]
+name = "Year"
+words = "clock date"
+
+[pref.date_order]
+name = "Date order"
+words = "clock date"
+
+[pref.month_number]
+name = "Month as a number"
+desc = "11/11 instead of 11 Nov"
+words = "clock date"
+
+[pref.countdown_events]
+name = "Count down to events"
+desc = "From the calendar"
+words = "countdown next appointment"
+
+[pref.countdown_timer]
+name = "Count down to the timer's end"
+words = "countdown next"
+
+[pref.countdown_pomodoro]
+name = "Count down to the next Pomodoro part"
+words = "countdown next focus"
+
+[pref.countdown_hours]
+name = "Events from"
+desc = "Before that, the bar shows the music or the date"
+words = "countdown hours"
+
+[pref.accent_rgb]
+name = "Accent color"
+desc = "Selections, sliders and rings"
+words = "color theme apricot accent"
+
+[pref.background_rgb]
+name = "Island background"
+words = "color theme background dark"
+
+[pref.gap_px]
+name = "Distance from the top"
+words = "space margin top gap"
+
+[pref.ui.tooltips]
+name = "Tooltips under the icons"
+words = "tips tooltip hover"
+
+[pref.ui.hover_highlight]
+name = "Highlight controls under the mouse"
+words = "highlight hover"
+
+[pref.modules.order]
+name = "Tab order"
+desc = "Drag to reorder the icons at the top of the panel"
+words = "order tabs icons top header panel reorder"
+
+[pref.ui.uniform_panels]
+name = "Panels as wide as the island"
+desc = "Panels can follow a wider pill"
+words = "panel width"
+
+[pref.ui.pill_height_pct]
+name = "Closed pill height"
+desc = "In % of normal"
+words = "pill height"
+
+[pref.notch_curve]
+name = "Roundness"
+words = "corners curve radius"
+
+[pref.all_monitors]
+name = "On every monitor"
+desc = "One island on each screen"
+words = "screens monitors displays"
+
+[pref.monitors]
+name = "Islands on these monitors"
+desc = "Click a screen to add or remove its island"
+words = "screens monitors displays"
+
+[pref.main_monitor]
+name = "Main monitor"
+desc = "Notifications, banners and cards show up on it"
+words = "screens monitors displays main primary"
+
+[pref.over_fullscreen]
+name = "Stay above borderless full-screen apps"
+desc = "When off, the island hides in front of games and videos"
+words = "game video full screen fullscreen"
+
+[pref.ui.follow_mouse]
+name = "Follow the cursor's monitor"
+desc = "Shows an island on the screen in use"
+words = "mouse monitor"
+
+[pref.auto_hide]
+name = "Hide as a line until the mouse reaches it"
+words = "auto hide line minimize"
+
+[pref.ui.hide_when]
+name = "When to hide"
+words = "mouse window maximized covered"
+
+[pref.hide_maximized]
+name = "Disappear with a maximized window"
+desc = "The island goes away completely, as with full-screen games and videos, while its monitor has a maximized window, like a browser with its tabs at the top. Notifications follow \"Show when an app hides the island\", in Notifications"
+words = "hide disappear maximized browser chrome tabs full screen"
+
+[pref.hide_apps]
+name = "Disappear only in front of these apps"
+desc = "Tap an app to mark it. The island goes away when it is the maximized window in front, like a browser with its tabs at the top; with other apps it stays. Lists the apps open now"
+words = "hide disappear app application browser chrome edge tabs maximized"
+
+[pref.ui.hide_delay_ms]
+name = "Delay before collapsing"
+desc = "After the mouse leaves"
+words = "hide delay"
+
+[pref.ui.line_expire_secs]
+name = "Fade the line out after"
+desc = "Zero keeps the line visible"
+words = "hide line"
+
+[pref.ui.line_click]
+name = "Click to reopen the line"
+desc = "Hover to show where to click"
+words = "hide click mouse"
+
+[pref.ui.line_full_width]
+name = "Edge zone as wide as the pill"
+words = "hide edge width"
+
+[pref.ui.hover_open]
+name = "Open the panel on hover"
+words = "hover open panel"
+
+[pref.animations]
+name = "Animations"
+words = "animation motion effects spring"
+
+[pref.modules.ai]
+name = "Show AI"
+
+[pref.ui.header_usage]
+name = "Usage in the panel header"
+desc = "A ring with each one's session, next to the mascot; clicking opens the Usage tab"
+words = "usage quota ring claude codex top header"
+
+[pref.ai_claude_enabled]
+name = "Claude Code"
+desc = "Quotas on the island and in the Usage tab"
+words = "claude anthropic"
+
+[pref.ai_codex_enabled]
+name = "Codex"
+desc = "Quotas on the island and in the Usage tab"
+words = "codex openai"
+
+[pref.ai_claude_model]
+name = "Claude"
+desc = "The model that answers in the chat; you can also switch it by tapping Claude's tab in the chat"
+words = "model claude opus sonnet haiku chat assistant"
+
+[pref.ai_codex_model]
+name = "Codex"
+desc = "The models Codex lists for your sign-in; none marked: its default"
+words = "model codex gpt chat assistant"
+
+[pref.ai_opencode_model]
+name = "OpenCode Go"
+desc = "OpenCode Go's models for your key; none marked: the first one listed"
+words = "model opencode go chat assistant"
+
+[pref.opencode_api_key]
+name = "OpenCode Go key"
+words = "opencode api key"
+
+[pref.claude_renew_login]
+name = "Renew the Claude sign-in for me"
+desc = "On: when the Claude Code sign-in expires on this PC, Cimori renews it in Claude Code's file, so the quotas stay right even if you only use Claude Code on another computer (SSH). Off: the quotas stop until you open Claude Code here"
+words = "usage quota login sign-in renew ssh token expired"
+
+[pref.quota_alerts]
+name = "Warn near the limit"
+desc = "At 80% and 95%, and \"is back!\" when it resets"
+words = "usage quota limit"
+
+[pref.info.hooks]
+name = "Hooks status"
+
+[pref.hooks_token]
+name = "Shared token"
+desc = "64 hexadecimal characters; reinstall the hooks after changing it"
+words = "hooks token security"
+
+[pref.action.install_hooks]
+name = "Install the hooks"
+desc = "Claude Code and Codex notify the island"
+words = "hooks permission"
+
+[pref.action.remove_hooks]
+name = "Remove the hooks"
+words = "hooks"
+
+[pref.modules.control]
+name = "Show the control center"
+
+[pref.control_tiles]
+name = "Control center buttons"
+desc = "Drag to reorder, drag out to remove"
+words = "wifi bluetooth buttons tiles"
+
+[pref.control_mixer]
+name = "Volume per app"
+words = "mixer volume apps"
+
+[pref.control_outputs]
+name = "Audio outputs"
+desc = "Headphones, speakers"
+words = "audio output headphones speakers"
+
+[pref.wheel_volume]
+name = "Mouse wheel on the island changes the volume"
+words = "volume wheel scroll"
+
+[pref.ui.volume_percent]
+name = "Volume percentage"
+words = "percentage volume"
+
+[pref.ui.mic_button]
+name = "Microphone button"
+words = "microphone mute"
+
+[pref.modules.agenda]
+name = "Show the calendar"
+
+[pref.calendar_ics_url]
+name = "Calendar address (.ics)"
+desc = "The secret address from Google Calendar or Outlook"
+words = "google outlook ics calendar"
+
+[pref.holidays]
+name = "Holidays"
+desc = "Uses the internet (Nager.Date)"
+words = "holiday"
+
+[pref.holidays_country]
+name = "Holidays' country"
+desc = "Two-letter code; empty uses the Windows region"
+words = "holiday country"
+
+[pref.timezone_system]
+name = "Windows time zone"
+desc = "Off: Brasília (UTC-3)"
+words = "time zone timezone hour"
+
+[pref.alert_sound]
+name = "Sound on alerts"
+desc = "Reminders, timers and events play a sound"
+words = "sound alarm reminder timer"
+
+[pref.agenda_reminders]
+name = "Remind me of events"
+desc = "An alert on the island"
+words = "reminder alarm"
+
+[pref.agenda_reminder_minutes]
+name = "How early"
+words = "reminder minutes"
+
+[pref.ui.agenda_featured_day]
+name = "Featured day"
+words = "calendar day big agenda"
+
+[pref.ui.agenda_events]
+name = "Events on the calendar"
+words = "calendar list appointments agenda"
+
+[pref.modules.weather]
+name = "Show the weather"
+
+[pref.weather]
+name = "City"
+desc = "Search by name"
+words = "city place location forecast"
+
+[pref.weather_fahrenheit]
+name = "Temperature unit"
+words = "celsius fahrenheit temperature"
+
+[pref.ui.weather_cards]
+name = "Forecast as cards"
+words = "weather forecast layout"
+
+[pref.modules.media]
+name = "Show media"
+
+[pref.lyrics]
+name = "Song lyrics"
+desc = "Uses the internet (lrclib.net)"
+words = "lyrics lrclib"
+
+[pref.ui.media_controls]
+name = "Playback controls"
+words = "buttons previous next music"
+
+[pref.ui.media_always]
+name = "Always show the music"
+desc = "Includes the music while there's a media session"
+words = "title music"
+
+[pref.ui.media_play_only]
+name = "Only the play/pause button"
+words = "music pause"
+
+[pref.ui.media_lyric_title]
+name = "Lyrics instead of the title"
+words = "lyrics title"
+
+[pref.ui.media_title_width]
+name = "Maximum title width"
+words = "music width"
+
+[pref.ui.lyric_size]
+name = "Lyrics size"
+words = "music font"
+
+[pref.ui.media_marquee]
+name = "Scroll long titles"
+words = "music marquee title"
+
+[pref.ui.media_wheel]
+name = "Change tracks with the wheel"
+desc = "Over the music on the pill"
+words = "music scroll wheel"
+
+[pref.ui.lyric_rgb]
+name = "Lyrics color"
+words = "music lyrics color"
+
+[pref.modules.notifications]
+name = "Show notifications"
+
+[pref.banners]
+name = "Notifications on the pill"
+desc = "A banner when a notification arrives"
+words = "banner notification"
+
+[pref.ui.banner_over_apps]
+name = "Show when an app hides the island"
+desc = "When the island goes away in front of a maximized window or an app marked in Hiding, the banner and permission requests still show up. Full-screen games and videos still don't get them"
+words = "banner notification hidden concealed disappear chrome maximized"
+
+[pref.banner_secs]
+name = "Time on screen"
+words = "banner seconds"
+
+[pref.notification_icons]
+name = "App icons"
+words = "icon app"
+
+[pref.notifications_per_page]
+name = "Notifications per page"
+words = "page list"
+
+[pref.muted_apps]
+name = "Kept off the island"
+desc = "Tap an app to mute or unmute it"
+words = "mute ignore app"
+
+[pref.action.windows_banners]
+name = "Hide the Windows banners"
+desc = "Turn off \"Show notification banners\" for each app; the notification still reaches the island"
+words = "banner windows"
+
+[pref.ui.banner_size]
+name = "Size"
+words = "banner size height"
+
+[pref.ui.banner_width_pct]
+name = "Banner width"
+words = "banner width"
+
+[pref.ui.banner_when_hidden]
+name = "Notify with the pill minimized"
+words = "notifications minimized"
+
+[pref.modules.timer]
+name = "Show Focus and timers"
+
+[pref.pomodoro_focus_secs]
+name = "Focus"
+words = "pomodoro focus"
+
+[pref.pomodoro_break_secs]
+name = "Break"
+words = "pomodoro break pause"
+
+[pref.timer_default_secs]
+name = "Default time"
+words = "timer countdown"
+
+[pref.ui.timer_on_line]
+name = "Timer on the minimized line"
+words = "timer line minimize"
+
+[pref.modules.tray]
+name = "Show other apps' icons"
+
+[pref.pinned_tray_apps]
+name = "On the pill"
+desc = "Drag to pin, unpin and reorder"
+words = "pin tray icons"
+
+[pref.info.bridge]
+name = "Bridge status"
+
+[pref.action.bridge_readme]
+name = "How to install the bridge"
+desc = "Clicks the icons the way the Windows taskbar does"
+words = "windhawk bridge"
+
+[pref.ui.tray_grid]
+name = "Show the icons in a grid"
+words = "tray grid"
+
+[pref.ui.tray_keep_open]
+name = "Keep the panel open when the mouse leaves"
+words = "tray keep open"
+
+[pref.modules.clipboard]
+name = "Show the clipboard history"
+
+[pref.modules.shelf]
+name = "Show the file shelf"
+
+[pref.modules.usb]
+name = "Show USB devices"
+
+[pref.modules.downloads]
+name = "Show downloads"
+
+[pref.clipboard_limit]
+name = "Recent items limit"
+desc = "Pinned items don't count"
+words = "history amount"
+
+[pref.clipboard_images]
+name = "Keep images"
+words = "clipboard image"
+
+[pref.clipboard_files]
+name = "Keep copied files"
+words = "clipboard files"
+
+[pref.clipboard_notice]
+name = "Show what was copied"
+desc = "A notice on the pill on every copy, even without the history. Nothing is kept"
+words = "copied notice clipboard"
+
+[pref.clipboard_persist]
+name = "Save the history to disk"
+desc = "Includes text and images; comes back after a restart"
+words = "clipboard save persist"
+
+[pref.clipboard_paste]
+name = "Paste when picking a copy"
+desc = "Ctrl+V; Ctrl+Shift+V in terminals"
+words = "clipboard paste"
+
+[pref.clipboard_thumbnails]
+name = "Show image thumbnails"
+words = "clipboard thumbnail image"
+
+[pref.clipboard_ignored_apps]
+name = "Ignored apps"
+desc = "Executables separated by commas"
+words = "clipboard ignore password app"
+
+[pref.shelf_persist]
+name = "Save the shelf to disk"
+desc = "Comes back after a restart; the files stay where they are"
+words = "shelf save persist"
+
+[pref.shelf_drag_move]
+name = "Move when dragging out"
+desc = "When off, dragging only copies"
+words = "shelf drag move"
+
+[pref.shelf_drop_pill]
+name = "Drop on the pill"
+desc = "Drag files to the closed island to keep them"
+words = "shelf drop drag pill"
+
+[pref.shelf_capacity]
+name = "Maximum files"
+words = "shelf files limit"
+
+[pref.shelf_qr]
+name = "Share with your phone"
+desc = "The local server only starts when you open the QR code"
+words = "qr phone network"
+
+[pref.shelf_receive]
+name = "Receive files from your phone"
+desc = "After checking the code; saves to Cimori's own folder"
+words = "qr receive upload"
+
+[pref.shelf_idle_minutes]
+name = "Stop after inactivity"
+words = "qr time minutes"
+
+[pref.usb_alerts]
+name = "Notify when connected"
+words = "usb notify banner"
+
+[pref.download_meter]
+name = "Fill the pill during downloads"
+words = "download progress bar"
+
+[pref.download_taskbar]
+name = "Read progress from the taskbar"
+desc = "Needs the Windhawk bridge"
+words = "download bridge taskbar"
+
+[pref.download_animation]
+name = "Animate start and finish"
+desc = "Follows the animations setting"
+words = "download animation"
+
+[pref.download_details]
+name = "Details for each download"
+desc = "Name, bytes and speed of partial files"
+words = "download list speed"
+
+[pref.download_recent]
+name = "Recent downloads"
+desc = "The latest files in the Downloads folder"
+words = "download recent files folder"
+
+[pref.ui.minimize_hotkey]
+name = "Minimize and restore"
+desc = "Click and press the keys"
+words = "shortcut keyboard win record hotkey"
+
+[pref.ui.notices_hotkey]
+name = "Open notifications"
+desc = "Click and press the keys"
+words = "shortcut keyboard win record hotkey"
+
+[pref.win_n]
+name = "Notifications shortcut"
+words = "shortcut keyboard notifications"
+
+[pref.action.export]
+name = "Export"
+desc = "Settings and reminders in one file"
+words = "save backup"
+
+[pref.action.import]
+name = "Import"
+desc = "From an exported file"
+words = "restore backup"
+
+[pref.action.restore]
+name = "Restore defaults"
+desc = "Puts every option back to the start"
+words = "reset default"
+
+[pref.info.version]
+name = "Cimori"
+desc = "Dynamic island for Windows 11"
+words = "version about"
+
+[pref.link.repo]
+name = "Source code"
+desc = "github.com/Vini-Paixao/Cimori"
+
+[pref.link.issues]
+name = "Report a problem"
+desc = "Bugs and ideas, through GitHub issues"
+
+[pref.link.license]
+name = "GPL-3.0 license"
+desc = "Free software: use, study, change and share it"
+words = "license gpl"
+
+[pref.action.show_welcome]
+name = "Show the welcome again"
+desc = "Appearance, the agents' hooks and the Windhawk bridge"
+words = "welcome getting started tutorial"
+
+[pref.info.update]
+name = "Status"
+words = "update version"
+
+[pref.action.check_updates]
+name = "Check for updates"
+desc = "Asks GitHub now"
+words = "update version check"
+
+[pref.action.install_update]
+name = "Download and install"
+desc = "Downloads the new version's installer from GitHub, checks its SHA-256 and installs it. Cimori closes and reopens on its own, with your settings"
+words = "update download install upgrade"
+
+[pref.action.download_update]
+name = "What's new"
+desc = "Opens the release page on GitHub"
+words = "update news changelog release notes"
+
+[pref.check_updates]
+name = "Check for updates automatically"
+desc = "On launch and once a day. When there's a new version, a notice on the island leads to this tab; nothing is installed unless you ask"
+words = "update version new github automatic notice"
+
+[pref.link.isle]
+name = "isle"
+desc = "zickrian · GPL-3.0 · the base of the island and the agents"
+
+[pref.link.mac_island]
+name = "Mac Island & Dock"
+desc = "caliberda · GPL-3.0 · options and modules"
+
+[pref.info.credits_mit]
+name = "Icon packs (MIT)"
+desc = "Fluent, Ionicons, Tabler, Phosphor, Bootstrap, Iconoir, Heroicons"
+words = "icons license"
+
+[pref.info.credits_icons]
+name = "More icons"
+desc = "Lucide: ISC · Material Symbols: Apache 2.0"
+words = "icons license"
+
+[pref.info.credits_crates]
+name = "Rust libraries (MIT, Apache 2.0 and others)"
+desc = "tokio, reqwest, serde, tiny-skia, resvg, windows-rs and others"
+words = "libraries crates license"
+
+[pref.ui.pill_style]
+name = "Island shape"
+desc = "The notch sticks to the top edge and opens on hover"
+words = "style notch pill island shape"
+
+[pref.ui.pill_width]
+name = "Minimum closed island width"
+desc = "It grows with the bar's items"
+words = "pill notch width"
+
+[pref.notch_items]
+name = "In the notch"
+desc = "What the closed notch shows; drag to reorder"
+words = "notch items clock"
+
+[pref.power.sleep]
+name = "Sleep"
+words = "power shut down sleep suspend"
+
+[pref.power.hibernate]
+name = "Hibernate"
+desc = "Only when Windows allows it"
+words = "power shut down hibernate"
+
+[pref.power.restart]
+name = "Restart"
+words = "power shut down restart reboot"
+
+[pref.power.shut_down]
+name = "Shut down"
+words = "power shut down"
+
+[pref.power.lock]
+name = "Lock"
+words = "power shut down lock"
+
+[pref.power.sign_out]
+name = "Sign out"
+desc = "Ends the session"
+words = "power shut down sign out log off session"
+
+[pref.power.confirm]
+name = "Ask first"
+desc = "Restart, shut down and sign out ask for confirmation"
+words = "power shut down confirm"
+
+[pref.ui.arrow_pins]
+name = "The arrow pins the island open"
+desc = "With auto-hide on. Click again to release it; the shortcut minimizes."
+words = "pin shelf drag files"
+
+[pref.welcome.intro]
+name = "Cimori is the island at the top of your screen"
+desc = "Hover or click it to open it; right-click it for settings"
+
+[pref.welcome.later]
+name = "You can change everything later"
+desc = "Right here in settings, through the tabs on the side or the search"
+
+[pref.welcome.agents]
+name = "AI agents on the island"
+desc = "With the hooks, Claude Code and Codex tell the island when they finish and ask for permission on it"
+
+[pref.welcome.claude]
+name = "Claude Code"
+
+[pref.welcome.codex]
+name = "Codex"
+
+[pref.welcome.bridge]
+name = "Windhawk bridge (optional)"
+desc = "Shows and clicks every tray icon and reads download progress from the taskbar"
+
+[pref.welcome.bridge1]
+name = "1. Install Windhawk"
+desc = "windhawk.net"
+
+[pref.welcome.bridge2]
+name = "2. In Windhawk, click Create a new mod"
+
+[pref.welcome.bridge3]
+name = "3. Delete the example and paste the code"
+words = "windhawk bridge copy"
+
+[pref.welcome.bridge4]
+name = "4. Compile the mod, then Exit editing mode"
+desc = "The bridge turns on and the status above changes to On"
+
+[pref.welcome.done]
+name = "Cimori is ready"
+desc = "To see these steps again: About → Show the welcome again"
+
+[pref.welcome.back]
+name = "Previous step"
+
+[pref.welcome.next]
+name = "Next step"
+
+[pref.welcome.finish]
+name = "Finish"
+desc = "Goes to settings"
+
+# The cards the rows sit in.
+[card]
+language = "Language"
+cimori = "Cimori"
+clock = "Clock"
+in_pill = "On the pill"
+power_button = "Power button"
+list = "List"
+history = "History"
+credits = "Credits"
+calendar = "Calendar"
+banners = "Banners"
+agents = "Agents"
+size = "Size"
+sound = "Sound"
+bridge = "Bridge"
+version = "Version"
+next = "Up next"
+shelf = "Shelf"
+pack = "Pack"
+monitors = "Monitors"
+items = "Items"
+hooks = "Hooks"
+progress = "Progress"
+steps = "Steps"
+chat_models = "Chat models"
+minimized_line = "Minimized line"
+lyrics = "Lyrics"
+reminders = "Reminders"
+interaction = "Interaction"
+colors = "Colors"
+sharing = "Sharing"
+weather = "Weather"
+timer = "Timer"
+keys = "Keys"
+vanish = "Disappearing"
+your_folder = "Your folder"
+agent_server = "Agent server"
+collapse = "Collapsing"
+windhawk_bridge = "Windhawk bridge"
+pomodoro = "Pomodoro"
+hide = "Hiding"
+quotas = "Quotas"
+welcome = "Welcome"
+backup = "Backup"
+drives = "Drives"
+panel_top = "Panel header"
+fullscreen = "Full screen"
+privacy = "Privacy"
+open_panel = "Open panel"
+defaults = "Defaults"
+module = "Module"
+open_island = "Open island"
+pinned = "Pinned"
+done = "Done"
+style = "Style"
+buttons = "Buttons"
+windows_banners = "Windows banners"
+notice = "Notice"
+automatic = "Automatic"
+muted_apps = "Muted apps"
+animations = "Animations"
+
+# The island's pages.
+[date]
+# Sunday first; then January first.
+weekdays = "Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday"
+weekdays_initial = "S|M|T|W|T|F|S"
+weekdays_forecast = "Sun|Mon|Tue|Wed|Thu|Fri|Sat"
+months = "January|February|March|April|May|June|July|August|September|October|November|December"
+# A date without its year, in numbers.
+day_month = "{m}/{d}"
+
+[number]
+# What separates the decimals: "2.5 MB".
+decimal = "."
+
+[time]
+now = "now"
+
+[media]
+empty_title = "Nothing playing yet."
+empty_sub = "Your music shows up here once it starts."
+playing = "NOW PLAYING"
+paused = "PAUSED"
+
+[agenda]
+upcoming = "Upcoming"
+today = "Today"
+this_day = "On this day"
+nothing = "Nothing scheduled"
+all_day = "All day"
+was_at = "{title} · was at {time}"
+at = "{title} · at {time}"
+now = "{title} · now"
+more.one = "and {n} more reminder"
+more.other = "and {n} more reminders"
+
+[weather]
+empty_title = "The weather here"
+loading = "Getting the weather…"
+summary = "{sky} · Feels like {feels}"
+humidity = "Humidity"
+wind = "Wind"
+uv = "UV index"
+rain_chance = "Rain"
+pressure = "Pressure"
+clouds = "Clouds"
+feels = "Feels like"
+sky = "Sky"
+today = "Today"
+tomorrow = "Tomorrow"
+now = "Now"
+attribution = "Weather data: Open-Meteo"
+bad_answer = "invalid answer from Open-Meteo: {err}"
+unavailable = "Open-Meteo unavailable: {err}"
+
+[focus]
+pomodoro = "Pomodoro"
+timer = "Timer"
+stopwatch = "Stopwatch"
+reminders = "Reminders"
+focus = "Focus"
+break = "Break"
+pause = "Pause"
+start = "Start"
+reminder_placeholder = "What do you want to remember?"
+minutes.one = "{n} minute"
+minutes.other = "{n} minutes"
+reminder_in = "In {m} min"
+no_reminders = "No pending reminders"
+more = "and {n} more"
+focus_done = "Focus done: time for a break"
+break_done = "Break's over: time to focus"
+time_up = "Time's up"
+reminder = "Reminder"
+
+[reminder]
+at = "at {time}"
+tomorrow_at = "tomorrow at {time}"
+
+# Clipboard, shelf, USB and downloads.
+[p8]
+search = "Search"
+paste = "Paste"
+copy = "Copy"
+unpin = "Unpin"
+pin = "Pin"
+delete = "Delete"
+clear_recent = "Clear recent"
+previous = "Previous"
+next = "Next"
+stop_qr = "Stop QR"
+refuse = "Refuse"
+allow = "Allow"
+open = "Open"
+take_out = "Remove"
+add_file = "Add file"
+share_qr = "Share via QR"
+eject = "Eject"
+show = "Show"
+open_downloads = "Open Downloads folder"
+pinned_only = "Pinned only"
+all = "All"
+clipboard_title = "Clipboard"
+clipboard_empty = "Copy text, links, images or files to get started."
+shelf_title = "Shelf"
+shelf_empty = "Drag a file onto the island or use Add file."
+usb_title = "USB devices"
+usb_empty = "No USB drive connected."
+downloads_title = "Downloads"
+downloads_empty = "No downloads detected right now."
+in_progress = "{n} in progress"
+size_unknown = "Total size not known yet"
+percent_done = "{p}% done"
+download_running = "Download in progress"
+no_download = "No downloads right now."
+recent = "Recent"
+no_match = "No items match the filter."
+search_history = "Search the history"
+scan = "Scan with your phone"
+same_wifi = "Use the same Wi-Fi network"
+check_code = "Check the code on your phone"
+just_now = "just now"
+ago = "{n} {unit} ago"
+of = "{done} of {total} {unit}"
+left = "{time} left"
+clipboard_watch_failed = "Couldn't watch the clipboard."
+copied = "Copied"
+image_limit = "History image limit reached."
+image = "Image"
+on_shelf = "On the shelf: {n}"
+shelf_full = "The shelf is full."
+drag_failed = "Couldn't drag: {err}"
+share_preparing = "Getting sharing ready…"
+no_data_dir = "The user data folder isn't available."
+share_unavailable = "Sharing unavailable. {err}"
+share_stopped = "Sharing stopped."
+copied_to_clipboard = "Copied to the clipboard."
+copy_failed = "Couldn't copy the item."
+pin_limit = "Pinned items limit reached."
+usb_connected = "USB connected"
+files.one = "{n} file"
+files.other = "{n} files"
+browser_download = "Browser download"
+usb_drive = "USB drive"
+
+[shelf]
+drop_here = "Drop to put it on the shelf"
+
+# The page the phone opens from the shelf's QR code.
+[share]
+authorize = "Allow this phone"
+check_code = "Check the code on Cimori and tap Allow."
+files = "Cimori's files"
+empty = "The shelf is empty."
+send_title = "Send to the computer"
+sending = "sending"
+on_shelf = "on the shelf"
+not_sent = "not sent"
+check_wifi = "Check the Wi-Fi and try again."
+phone_file = "File from phone"
+length_required = "Size required."
+folder_failed = "Couldn't create the folder."
+limit = "File, session, shelf or disk limit reached."
+incomplete = "Upload incomplete; try again."
+save_failed = "Couldn't save the file."
+
+# The tooltips under the icons.
+[tip]
+assistant = "Assistant"
+unpin = "Release the island"
+pin = "Keep the island open"
+collapse = "Collapse"
+settings = "Settings"
+mic_on = "Unmute microphone"
+mic_off = "Mute microphone"
+sound_on = "Unmute sound"
+sound_off = "Mute sound"
+mixer = "Windows mixer"
+power = "Power"
+remove_tile = "Remove {name}"
+add_tile = "Add {name}"
+new_chat = "New chat"
+back = "Back"
+send = "Send message"
+stop = "Stop answer"
+older = "Older messages"
+newer = "Recent messages"
+clear_all = "Clear all notifications"
+send_reply = "Send reply"
+reply = "Reply"
+reset = "Reset"
+previous = "Previous track"
+next = "Next track"
+pause = "Pause"
+play = "Play"
+
+[control]
+settings = "Settings"
+on = "On"
+off = "Off"
+muted = "Muted"
+done = "Done"
+edit = "Edit"
+app_volume = "Volume per app"
+no_audio_apps = "No apps playing audio"
+add = "Add controls"
+all_added = "Every control is already in the center"
+tap_to_add = "Tap a control below to add it to the center"
+no_output = "Audio output unavailable"
+module_off = "{name}: turn its module on in settings"
+
+[notices]
+title = "Your notifications"
+empty_title = "All caught up."
+empty_sub = "When a notification arrives, it shows up here."
+reply_placeholder = "Type a reply"
+count.one = "{n} notification"
+count.other = "{n} notifications"
+unread.one = "{n} unread"
+unread.other = "{n} unread"
+
+[tray]
+title = "Close at hand."
+empty_title = "Everything's at hand"
+empty_sub = "Your pinned apps are on the compact bar."
+app = "App"
+hint = "Right-click opens the app's menu"
+
+[power]
+none_on = "Turn on an action in Settings → Control center"
+cancel = "Cancel"
+sleep = "Sleep"
+hibernate = "Hibernate"
+restart = "Restart"
+shut_down = "Shut down"
+lock = "Lock"
+sign_out = "Sign out"
+ask_restart = "Restart now?"
+ask_shut_down = "Shut down now?"
+ask_sign_out = "Sign out now?"
+
+[keys]
+space = "Space"
+other = "Key {code}"
+none = "None"
+
+[permission]
+queued = "+{n} waiting"
+allow = "Allow"
+always = "Always"
+deny = "Deny"
+
+# The island's banners.
+[banner]
+volume = "Volume"
+muted = "Sound muted"
+
+[agent]
+done = "{name} finished"
+permission = "{name} asks for permission"
+waiting = "{name} is waiting for you"
+too_long = "Command too long for the island: answer in the terminal"
+
+[quota]
+80 = "{name}: 80% of the quota"
+80_sub = "Watch your usage in this window"
+95 = "{name}: 95% of the quota!"
+95_sub = "Quota about to run out"
+reset_sub = "Quota reset and ready to use"
+
+[update]
+no_installer = "This version has no installer"
+no_sums = "This version has no SHA256SUMS.txt"
+sums_failed = "Couldn't download the hashes: {err}"
+not_in_sums = "The installer isn't in the version's hashes"
+download_failed = "Couldn't download: {err}"
+hash_mismatch = "The downloaded installer doesn't match the version's hash; nothing was installed"
+save_failed = "Couldn't save the installer: {err}"
+available_have = "Cimori {version} is available (you have {current})"
+available = "Cimori {version} is available"
+tap = "Tap to update"
+latest = "You have the latest version ({current})"
+check_failed = "Couldn't check right now; check your internet"
+downloading = "Downloading Cimori {version}…"
+installing = "Installing; Cimori will close and reopen"
+installer_failed = "The installer didn't open: {err}"
+
+[icons]
+windows = "Windows icons"
+loading = "Loading icons…"
+downloading = "Downloading icons: {n}/{total}"
+ready = "Ready · {n} icons; missing ones use Windows'"
+failed = "Couldn't finish. Use Reload to try again."
+deleted = "Pack deleted"
+delete_failed = "Couldn't delete the pack"
+
+[files]
+backup_filter = "Cimori backup (*.json)"
+
+[errors]
+audio = "Audio unavailable: {err}"
+notifications = "Notifications unavailable: {err}"
+tray = "Tray unavailable: {err}"
+tray_click = "This icon's app doesn't respond to clicks"
+hibernate = "Windows refused to hibernate"
+keyboard = "Windows refused to give the island the keyboard"
+usb_missing = "USB drive {letter}: isn't available"
+usb_open = "Couldn't open USB drive {letter}:"
+usb_disk = "Couldn't identify the disk of {letter}:"
+usb_device = "The device for drive {letter}: wasn't found"
+usb_changed = "The device for drive {letter}: changed while ejecting"
+usb_no_removal = "Windows offered no safe removal for drive {letter}:"
+usb_media_refused = "Windows refused to eject the media in drive {letter}: ({err})"
+usb_refused = "Windows refused to eject drive {letter}: (code {code}, reason {veto})"
+share_network = "Connect to a private local network over Wi-Fi or Ethernet."

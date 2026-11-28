@@ -1,3 +1,4 @@
+use isle_core::i18n::{tr};
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Mac Island & Dock by caliberda reads Explorer's taskbar progress from inside
@@ -51,7 +52,7 @@ fn display_name(file: &std::path::Path) -> String {
     let unnamed = ["Não confirmado ", "Unconfirmed "].iter().any(|prefix| {
         stem.strip_prefix(prefix).is_some_and(|rest| !rest.is_empty() && rest.bytes().all(|b| b.is_ascii_digit()))
     });
-    if unnamed { "Download do navegador".into() } else { stem }
+    if unnamed { tr("p8.browser_download").into() } else { stem }
 }
 
 /// The whole size of a download from its bytes so far and the taskbar's ‰ (the Windhawk bridge).

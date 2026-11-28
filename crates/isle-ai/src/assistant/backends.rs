@@ -2,6 +2,7 @@
 // Adapted from zickrian/isle @ a29a7c4 assistant/{claude,codex,opencode,child}.rs.
 // Copyright (C) 2026 zickrian. Windows text-only port: process per bounded transcript,
 // no action schema, no voice, private application workspace and hidden child jobs.
+use isle_core::i18n::{tr, trf};
 use super::{
     process::{self, Child},
     protocol::{self, Stream},
@@ -110,9 +111,9 @@ impl Pipe {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         let mut child = Child::spawn(&mut cmd)?;
-        let stdin = child.process.stdin.take().context("CLI sem stdin")?;
-        let stdout = BufReader::new(child.process.stdout.take().context("CLI sem stdout")?);
-        let mut errors = BufReader::new(child.process.stderr.take().context("CLI sem stderr")?);
+        let stdin = child.process.stdin.take().context(tr("assistant.no_stdin"))?;
+        let stdout = BufReader::new(child.process.stdout.take().context(tr("assistant.no_stdout"))?);
+        let mut errors = BufReader::new(child.process.stderr.take().context(tr("assistant.no_stderr"))?);
         let tail = std::sync::Arc::new(std::sync::Mutex::new(String::new()));
         let kept = tail.clone();
         let stderr = tokio::spawn(async move {
@@ -135,7 +136,7 @@ impl Pipe {
         self.stdin
             .write_all(format!("{value}\n").as_bytes())
             .await
-            .context("CLI encerrou a entrada")?;
+            .context(tr("assistant.input_closed"))?;
         Ok(())
     }
     async fn next(&mut self) -> Result<Option<Value>> {
@@ -144,7 +145,7 @@ impl Pipe {
                 continue;
             }
             return Ok(Some(
-                serde_json::from_str(&line).context("Evento JSON inválido do CLI")?,
+                serde_json::from_str(&line).context(tr("assistant.bad_event"))?,
             ));
         }
         Ok(None)
@@ -163,7 +164,7 @@ impl Pipe {
             }
             self.deny(&message).await?;
         }
-        bail!("Codex encerrou antes de responder ({})", self.error())
+        bail!("{}", trf("assistant.codex_ended", &[("err", &self.error())]))
     }
     async fn deny(&mut self, event: &Value) -> Result<()> {
         if event.get("id").is_some() && event.get("method").is_some() {
@@ -182,8 +183,8 @@ impl Pipe {
         let _ = (&mut self.stderr).await;
         ensure!(
             status.success(),
-            "CLI encerrou com {status}: {}",
-            self.error()
+            "{}",
+            trf("assistant.cli_exited", &[("status", &status), ("err", &self.error())])
         );
         Ok(())
     }
@@ -295,7 +296,7 @@ pub async fn ask(
             let thread = pipe.request(2,"thread/start",start).await?;
             let id = thread["thread"]["id"]
                 .as_str()
-                .context("Codex não abriu conversa")?;
+                .context(tr("assistant.codex_no_thread"))?;
             // The turn/start response can be interleaved with deltas; read both below.
             pipe.write(json!({"jsonrpc":"2.0","id":3,"method":"turn/start","params":protocol::codex_turn(id,&prompt)})).await?;
         }
@@ -326,12 +327,12 @@ pub async fn ask(
     if provider == AiProviderKind::OpenCodeGo {
         pipe.finish().await?;
     } else {
-        ensure!(stream.done, "CLI parou antes de concluir: {}", pipe.error());
+        ensure!(stream.done, "{}", trf("assistant.cli_stopped", &[("err", &pipe.error())]));
     }
     ensure!(
         !stream.text.trim().is_empty(),
-        "O assistente não retornou texto: {}",
-        pipe.error()
+        "{}",
+        trf("assistant.no_text", &[("err", &pipe.error())])
     );
     Ok(stream.text)
 }
@@ -373,12 +374,12 @@ pub async fn models(provider: AiProviderKind, key: Option<&str>) -> Result<Vec<M
             Ok(codex_models(&pages))
         }
         AiProviderKind::OpenCodeGo => {
-            let key = key.filter(|k| !k.trim().is_empty()).context("Coloque a chave do OpenCode Go em Configurações → IA")?;
+            let key = key.filter(|k| !k.trim().is_empty()).context(tr("assistant.opencode_key"))?;
             let mut list = go_command(key)?;
             list.arg("models");
             let listed = tokio::time::timeout(std::time::Duration::from_secs(30), listing(list))
                 .await
-                .context("OpenCode demorou para listar modelos")??;
+                .context(tr("assistant.opencode_models_slow"))??;
             Ok(go_models(&listed).into_iter().map(|id| choice(id, id.trim_start_matches("opencode-go/"))).collect())
         }
     }
@@ -533,7 +534,7 @@ async fn listing(mut cmd: Command) -> Result<String> {
     while let Some(line) = process::line(&mut pipe.stdout).await? {
         ensure!(
             text.len() + line.len() < process::MAX_LINE,
-            "Lista de modelos muito grande"
+            "{}", tr("assistant.models_too_long")
         );
         text.push_str(&line);
         text.push('\n');
@@ -544,16 +545,16 @@ async fn listing(mut cmd: Command) -> Result<String> {
 async fn opencode(workspace: &std::path::Path, key: Option<&str>, chosen: &str) -> Result<Command> {
     let key = key
         .filter(|k| !k.trim().is_empty())
-        .context("Coloque a chave do OpenCode Go em Configurações → IA")?;
+        .context(tr("assistant.opencode_key"))?;
     let mut check = go_command(key)?;
     check.arg("--version");
     let text = tokio::time::timeout(std::time::Duration::from_secs(10), listing(check))
         .await
-        .context("OpenCode demorou para iniciar")??;
-    let version = version(&text).context("Versão do OpenCode desconhecida")?;
+        .context(tr("assistant.opencode_slow"))??;
+    let version = version(&text).context(tr("assistant.opencode_version"))?;
     ensure!(
         version >= [1, 4, 8],
-        "Atualize o OpenCode para 1.4.8 ou posterior"
+        "{}", tr("assistant.opencode_update")
     );
     let mut models = go_command(key)?;
     models.arg("models").arg(if version[0] >= 2 {
@@ -563,10 +564,10 @@ async fn opencode(workspace: &std::path::Path, key: Option<&str>, chosen: &str) 
     });
     let listed = tokio::time::timeout(std::time::Duration::from_secs(30), listing(models))
         .await
-        .context("OpenCode demorou para listar modelos")??;
+        .context(tr("assistant.opencode_models_slow"))??;
     // The chosen one while OpenCode still lists it, else the first.
     let model = go_models(&listed).into_iter().find(|m| *m == chosen).or_else(|| go_model(&listed))
-        .context("O CLI não listou modelos opencode-go para este login")?;
+        .context(tr("assistant.opencode_no_models"))?;
     let mut cmd = go_command(key)?;
     cmd.arg("run");
     if version[0] >= 2 {

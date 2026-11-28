@@ -2,6 +2,7 @@
 // Adapted from zickrian/isle @ a29a7c4 assistant/agent.rs (Copyright 2026 zickrian): the AI answers in a
 // JSON object; a command it asks for runs only after the user's Run (here Executar), and what it printed
 // goes back to it, step by step. Windows: one PowerShell command per step, nothing runs unapproved.
+use isle_core::i18n::{tr};
 use super::process::Child;
 use anyhow::Result;
 use isle_core::chat::Approval;
@@ -49,7 +50,7 @@ pub fn parse(raw: &str) -> Reply {
     let run = v.get("run").filter(|r| r.is_object()).and_then(|r| {
         let command = r["command"].as_str()?.trim();
         (!command.is_empty()).then(|| Approval {
-            title: r["title"].as_str().map(str::trim).filter(|t| !t.is_empty()).unwrap_or("Executar um comando").to_owned(),
+            title: r["title"].as_str().map(str::trim).filter(|t| !t.is_empty()).unwrap_or(tr("chat.run_command")).to_owned(),
             command: command.to_owned(),
         })
     });

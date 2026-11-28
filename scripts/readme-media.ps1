@@ -1,7 +1,9 @@
 # The README's demo and clips, drawn by Cimori's own renderer on a made-up desktop with made-up data
 # (crates/isle-render/examples/demo_reel.rs). Needs ffmpeg on PATH.
 #   .\scripts\readme-media.ps1            -> docs\media\demo.mp4, demo.webp and one .webp per chapter
-param([string]$Out = "docs\media")
+#   .\scripts\readme-media.ps1 -Lang en-US -Out docs\media\en  -> the same, in English
+param([string]$Out = "docs\media", [string]$Lang = "pt-BR")
+$env:CIMORI_LANG = $Lang
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent

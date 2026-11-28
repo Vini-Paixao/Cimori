@@ -3,6 +3,7 @@
 // Adapted for isle-win from Mac Island & Dock by caliberda v3.1.0 (GetVolume,
 // StatusEvents, ReadMixerApps, SetAppVolume): CoreAudio on a Rust MTA worker.
 
+use isle_core::i18n::{trf};
 use isle_core::state::{AppVolume, AudioOutput};
 use std::sync::mpsc::{self, Sender};
 
@@ -41,7 +42,7 @@ pub fn spawn(on_event: impl Fn(AudioEvent) + Send + 'static) -> Sender<AudioComm
         let events = tx.clone();
         std::thread::spawn(move || {
             if let Err(err) = win::run(rx, events, &on_event) {
-                on_event(AudioEvent::Error(format!("Áudio indisponível: {err:#}")));
+                on_event(AudioEvent::Error(trf("errors.audio", &[("err", &format!("{err:#}"))])));
             }
         });
     }

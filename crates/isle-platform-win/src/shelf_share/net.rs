@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 zickrian
 
+use isle_core::i18n::{tr};
 use std::io;
 use std::net::Ipv4Addr;
 
@@ -49,7 +50,7 @@ impl Lan {
 fn unavailable() -> io::Error {
     io::Error::new(
         io::ErrorKind::AddrNotAvailable,
-        "Conecte-se a uma rede local privada por Wi-Fi ou Ethernet.",
+        tr("errors.share_network"),
     )
 }
 

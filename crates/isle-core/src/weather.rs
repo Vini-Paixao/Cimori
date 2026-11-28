@@ -29,7 +29,7 @@ pub fn geocoding_url(name: &str) -> String {
             _ => q.push_str(&format!("%{b:02X}")),
         }
     }
-    format!("https://geocoding-api.open-meteo.com/v1/search?name={q}&count=5&language=pt&format=json")
+    format!("https://geocoding-api.open-meteo.com/v1/search?name={q}&count=5&language={}&format=json", crate::i18n::current().code.split('-').next().unwrap_or("en"))
 }
 
 /// The places found: ("Cidade, Estado, País", latitude, longitude); empty when none or unreadable.
@@ -234,17 +234,17 @@ impl Sky {
     }
 
     pub fn name(self) -> &'static str {
-        match self {
-            Sky::ClearDay | Sky::ClearNight => "Céu limpo",
-            Sky::PartlyDay | Sky::PartlyNight => "Poucas nuvens",
-            Sky::Cloud => "Nublado",
-            Sky::Rain => "Chuva",
-            Sky::Drizzle => "Garoa",
-            Sky::Snow => "Neve",
-            Sky::Sleet => "Chuva congelada",
-            Sky::Thunder => "Trovoada",
-            Sky::Fog => "Neblina",
-        }
+        crate::i18n::tr(match self {
+            Sky::ClearDay | Sky::ClearNight => "weather.clear",
+            Sky::PartlyDay | Sky::PartlyNight => "weather.partly",
+            Sky::Cloud => "weather.cloudy",
+            Sky::Rain => "weather.rain",
+            Sky::Drizzle => "weather.drizzle",
+            Sky::Snow => "weather.snow",
+            Sky::Sleet => "weather.sleet",
+            Sky::Thunder => "weather.thunder",
+            Sky::Fog => "weather.fog",
+        })
     }
 }
 

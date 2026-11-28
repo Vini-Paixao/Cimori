@@ -5,15 +5,15 @@ use crate::{
     pages::{HitBox, UiAction},
     text::{Text, Weight},
 };
-use isle_core::{chat::Chat, state::AiProviderKind};
+use isle_core::{chat::Chat, i18n::tr, state::AiProviderKind};
 
 pub const TEXT_TOP: f32 = crate::layout::BODY + 50.0;
-/// Port of IDEAS (isle voice.js): what to try under an empty field: the chip, the words it puts in, and
-/// whether it asks at once.
+/// Port of IDEAS (isle voice.js): what to try under an empty field: the chip, the words it puts in (keys
+/// of locales/), and whether it asks at once.
 pub const IDEAS: [(&str, &str, bool); 3] = [
-    ("Plano de hoje", "O que tenho na agenda hoje?", true),
-    ("Instalar um app…", "Instale ", false),
-    ("Encontrar um arquivo…", "Encontre ", false),
+    ("chat.idea_plan", "chat.idea_plan_words", true),
+    ("chat.idea_install", "chat.idea_install_words", false),
+    ("chat.idea_find", "chat.idea_find_words", false),
 ];
 /// The ideas show while nothing is said or typed yet (isle's `_syncIdeas`).
 pub fn ideas_shown(chat: &Chat) -> bool {
@@ -81,7 +81,7 @@ pub fn hitboxes(left: f32, top: f32, w: f32, h: f32, chat: &Chat) -> Vec<HitBox>
         // .isle-voice-idea: 12 px semibold, 4 px by 11, 6 px apart.
         let mut x = 20.;
         for (i, (name, _, _)) in IDEAS.iter().enumerate() {
-            let iw = crate::pages::BAR_TEXT.with(|t| t.width(name, 12., Weight::Semibold)) + 22.;
+            let iw = crate::pages::BAR_TEXT.with(|t| t.width(tr(name), 12., Weight::Semibold)) + 22.;
             boxes.push(hb(x, h - 90., iw, 24., UiAction::AiIdea(i)));
             x += iw + 6.;
         }
@@ -111,7 +111,7 @@ pub fn lines(text: &Text, chat: &Chat, width: f32) -> Vec<(bool, String)> {
         rows.push((
             item.user,
             if item.user {
-                "Você"
+                tr("chat.you")
             } else {
                 isle_core::chat::provider_name(chat.provider)
             }
@@ -128,7 +128,7 @@ pub fn lines(text: &Text, chat: &Chat, width: f32) -> Vec<(bool, String)> {
         rows.push((item.user, String::new()));
     }
     if let Some(error) = &chat.error {
-        rows.push((false, "Aviso".into()));
+        rows.push((false, tr("chat.notice").into()));
         for paragraph in error.split('\n') {
             rows.extend(
                 text.wrap_exact(paragraph, width, 12.0, Weight::Regular)

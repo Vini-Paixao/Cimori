@@ -1,6 +1,7 @@
 // The settings window wired to the island: open, edit, apply live, save
 // (docs/superpowers/specs/2026-11-11-configuracoes-design.md).
 use super::*;
+use isle_core::i18n::{tr, trf};
 use isle_core::prefs::{self, PrefKind, PrefValue, SettingsTab};
 use isle_render::settings::{self as view, ChipDrag, Focus, SettingsAction, SettingsView};
 use isle_render::renderer::PillRenderer;
@@ -112,21 +113,21 @@ impl IsleApp {
         let (codex, opencode) = (models(isle_core::state::AiProviderKind::Codex), models(isle_core::state::AiProviderKind::OpenCodeGo));
         self.settings.view.dynamic = vec![("muted_apps", seen), ("pinned_tray_apps", tray), ("hide_apps", windowed),
             ("ai_codex_model", codex), ("ai_opencode_model", opencode)];
-        let hooks = if isle_ai::agents::claude::hooked(&isle_ai::agents::claude::settings_path()) { "Instalados" } else { "Não instalados" };
+        let hooks = if isle_ai::agents::claude::hooked(&isle_ai::agents::claude::settings_path()) { tr("settings.hooks_installed") } else { tr("settings.hooks_not_installed") };
         // The agents' folders (~/.claude, ~/.codex) say they are installed.
         let agent = |path: std::path::PathBuf, hooked: fn(&std::path::Path) -> bool| {
-            if hooked(&path) { "Hooks instalados" } else if path.parent().is_some_and(|d| d.is_dir()) { "Encontrado, sem hooks" } else { "Não encontrado" }
+            if hooked(&path) { tr("settings.agent_hooked") } else if path.parent().is_some_and(|d| d.is_dir()) { tr("settings.agent_found") } else { tr("settings.agent_missing") }
         };
-        let bridge = if self.state.tray_bridge { "Ligada" } else if !self.config.modules.tray { "Ligue a Bandeja para detectar" } else { "Não encontrada" };
+        let bridge = if self.state.tray_bridge { tr("settings.bridge_on") } else if !self.config.modules.tray { tr("settings.bridge_needs_tray") } else { tr("settings.bridge_missing") };
         self.settings.view.info = vec![
             ("info.icons", self.icons_work.status.clone()),
             ("info.icon_credits", "Microsoft, Ionic, Tabler, Phosphor, Bootstrap, Iconoir, Tailwind Labs: MIT · Lucide: ISC · Google: Apache 2.0".into()),
-            ("info.version", format!("Versão {}", env!("CARGO_PKG_VERSION"))),
+            ("info.version", trf("settings.version", &[("version", &env!("CARGO_PKG_VERSION"))])),
             ("info.hooks", hooks.into()),
             ("info.bridge", bridge.into()),
             ("welcome.claude", agent(isle_ai::agents::claude::settings_path(), isle_ai::agents::claude::hooked).into()),
             ("welcome.codex", agent(isle_ai::agents::codex::hooks_path(), isle_ai::agents::codex::hooked).into()),
-            ("info.update", if self.release.status.is_empty() { "Ainda não verificado".into() } else { self.release.status.clone() }),
+            ("info.update", if self.release.status.is_empty() { tr("settings.update_unchecked").into() } else { self.release.status.clone() }),
         ];
         self.settings.view.update = self.release.newer.as_ref().map(|l| l.version.clone());
         self.settings.view.update_installable = self.release.newer.as_ref().is_some_and(|l| l.installer.is_some());
@@ -323,7 +324,7 @@ impl IsleApp {
             return;
         }
         if !isle_core::shortcut::accepts(code) {
-            self.settings.view.status = Some("Use Win, Ctrl ou Alt com uma tecla".into());
+            self.settings.view.status = Some(tr("settings.shortcut_needs_modifier").into());
             return;
         }
         self.settings.view.recording = None;
@@ -555,8 +556,8 @@ impl IsleApp {
                     Some(Focus::Row(id)) => {
                         let Some(p) = prefs::by_id(id) else { return };
                         match (p.kind, (p.get)(&self.config)) {
-                            (PrefKind::Choice(options), PrefValue::Index(i)) => {
-                                let i = (i as i32 + step).clamp(0, options.len() as i32 - 1) as usize;
+                            (PrefKind::Choice(_), PrefValue::Index(i)) => {
+                                let i = (i as i32 + step).clamp(0, p.choices().len() as i32 - 1) as usize;
                                 self.set_pref(id, PrefValue::Index(i), true);
                             }
                             (PrefKind::Slider { min, max, step: s, .. }, PrefValue::Number(n)) => {
@@ -607,7 +608,7 @@ impl IsleApp {
                 let old = self.config.clone();
                 self.config = IsleConfig { settings_window: old.settings_window.clone(), ..IsleConfig::default() };
                 self.apply_config(&old, true);
-                status(self, "Configurações restauradas");
+                status(self, tr("settings.restored"));
             }
             OpenFolder => {
                 if let Some(dir) = self.settings_path.as_ref().and_then(|p| p.parent()) {
@@ -630,10 +631,10 @@ impl IsleApp {
                 }
                 let done = if action == InstallHooks { crate::install_hooks(None) } else { crate::uninstall_hooks() };
                 match done {
-                    Ok(()) => status(self, if action == InstallHooks { "Hooks instalados" } else { "Hooks removidos" }),
+                    Ok(()) => status(self, tr(if action == InstallHooks { "settings.hooks_done" } else { "settings.hooks_removed" })),
                     Err(err) => {
                         tracing::warn!("hooks: {err:#}");
-                        status(self, "Não deu para mexer nos hooks");
+                        status(self, tr("settings.hooks_failed"));
                     }
                 }
                 self.refresh_settings_view();
@@ -699,11 +700,11 @@ impl IsleApp {
         let Some(path) = path else { return };
         let done = if save { self.export_backup(&path) } else { self.import_backup(&path) };
         self.settings.view.status = Some(match (save, done) {
-            (true, Ok(())) => "Backup exportado".into(),
-            (false, Ok(())) => "Backup importado".into(),
+            (true, Ok(())) => tr("settings.backup_exported").into(),
+            (false, Ok(())) => tr("settings.backup_imported").into(),
             (_, Err(err)) => {
                 tracing::warn!("backup: {err:#}");
-                if save { "Não deu para exportar".into() } else { "Esse arquivo não é um backup da Cimori".into() }
+                tr(if save { "settings.export_failed" } else { "settings.not_a_backup" }).into()
             }
         });
         self.settings.dirty = true;
@@ -745,7 +746,7 @@ impl IsleApp {
         if name.is_empty() {
             return;
         }
-        self.settings.view.status = Some("Buscando…".into());
+        self.settings.view.status = Some(tr("settings.searching").into());
         let Some(Services { rt, tx, waker }) = self.services.clone() else { return };
         rt.spawn(async move {
             let url = isle_core::weather::geocoding_url(&name);
@@ -762,7 +763,7 @@ impl IsleApp {
         match answer {
             Ok(places) if places.is_empty() => {
                 v.city_results.clear();
-                v.status = Some("Nenhuma cidade com esse nome".into());
+                v.status = Some(tr("settings.no_city").into());
             }
             Ok(places) => {
                 v.city_results = places;
@@ -771,7 +772,7 @@ impl IsleApp {
             Err(err) => {
                 tracing::warn!("busca de cidade: {err}");
                 v.city_results.clear();
-                v.status = Some("Sem conexão para buscar a cidade".into());
+                v.status = Some(tr("settings.city_offline").into());
             }
         }
         self.settings.dirty = true;

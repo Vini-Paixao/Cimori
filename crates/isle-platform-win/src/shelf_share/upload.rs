@@ -2,6 +2,7 @@
 // Copyright (C) 2026 zickrian
 //! Port of isle-daemon/src/share/{server,session,files}.rs at a29a7c4.
 
+use isle_core::i18n::tr;
 use super::*;
 use std::io::Write;
 use tokio::io::AsyncReadExt;
@@ -42,7 +43,7 @@ fn sanitize(raw: &str) -> String {
         '<' | '>' | ':' | '"' | '|' | '?' | '*' | '\u{200b}' | '\u{200e}' | '\u{200f}' |
         '\u{2028}'..='\u{202e}' | '\u{2060}' | '\u{2066}'..='\u{2069}' | '\u{061c}' | '\u{feff}')).collect();
     let mut name = cleaned.trim().trim_matches('.').trim().to_owned();
-    if name.is_empty() { return "Arquivo do celular".into(); }
+    if name.is_empty() { return tr("share.phone_file").into(); }
     let stem = name.split('.').next().unwrap_or_default().to_ascii_uppercase();
     if matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL" | "CONIN$" | "CONOUT$")
         || (stem.len() == 4 && (stem.starts_with("COM") || stem.starts_with("LPT")) && stem.as_bytes()[3].is_ascii_digit()) { name.insert(0, '_'); }
@@ -68,12 +69,12 @@ fn decode(text: &str) -> Option<String> {
 
 // Port of share/server.rs::upload/receive/land: a private part is published only whole.
 pub(super) async fn receive(session: &Arc<Session>, stream: &mut TcpStream, head: &http::Head, query: &str, peer: Ipv4Addr) -> io::Result<()> {
-    let Some(length) = head.length else { return http::send_text(stream, 411, "Tamanho obrigatório.").await; };
+    let Some(length) = head.length else { return http::send_text(stream, 411, tr("share.length_required")).await; };
     let dir = session.options.receive.as_ref().unwrap();
-    if std::fs::create_dir_all(dir).is_err() { return http::send_text(stream, 507, "Não foi possível criar a pasta.").await; }
+    if std::fs::create_dir_all(dir).is_err() { return http::send_text(stream, 507, tr("share.folder_failed")).await; }
     let _reservation = match session.reserve(length) {
         Ok(hold) => hold,
-        Err(status) => return http::send_text(stream, status, "Limite de arquivo, sessão, prateleira ou disco atingido.").await,
+        Err(status) => return http::send_text(stream, status, tr("share.limit")).await,
     };
     let name = sanitize(&query.split('&').find_map(|p| p.strip_prefix("name=").and_then(decode)).unwrap_or_default());
     let part = Part(dir.join(format!(".phone-{}.part", random_token().map_err(io::Error::other)?)));
@@ -105,12 +106,12 @@ pub(super) async fn receive(session: &Arc<Session>, stream: &mut TcpStream, head
         Ok(())
     }.await;
     drop(file);
-    if result.is_err() { return http::send_text(stream, 400, "Envio incompleto; tente novamente.").await; }
+    if result.is_err() { return http::send_text(stream, 400, tr("share.incomplete")).await; }
     // Mark of the Web, so SmartScreen warns when the phone's file is opened. A hard link shares the stream.
-    if mark_of_the_web(&part.0, peer).is_err() { return http::send_text(stream, 507, "Não foi possível salvar o arquivo.").await; }
+    if mark_of_the_web(&part.0, peer).is_err() { return http::send_text(stream, 507, tr("share.save_failed")).await; }
     let saved = match land(session, &part.0, &name, length) {
         Ok(path) => path,
-        Err(status) => return http::send_text(stream, status, "Não foi possível salvar o arquivo.").await,
+        Err(status) => return http::send_text(stream, status, tr("share.save_failed")).await,
     };
     let name = saved.file_name().unwrap().to_string_lossy().into_owned();
     (session.on_change)();

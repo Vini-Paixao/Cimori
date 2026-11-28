@@ -12,6 +12,7 @@
 // button. Shell_NotifyIconGetRect is not an enumeration/liveness API and can
 // block on a disconnected shell. See docs/PHASE5-VALIDATION.md for limitations.
 
+use isle_core::i18n::{trf};
 use isle_core::config::PinnedTrayApp;
 pub use isle_core::tray::TrayItem;
 use std::sync::{mpsc, Arc};
@@ -70,7 +71,7 @@ pub fn spawn(
                     if let Err(err) = win::run(pins, rx, changed_tx, signal, bridged, &publish) {
                         tracing::warn!("bandeja: {err:#}");
                         publish(TraySnapshot { bridge: false,
-                            error: Some(format!("Bandeja indisponível: {err}")),
+                            error: Some(trf("errors.tray", &[("err", &err)])),
                             ..Default::default()
                         });
                     }

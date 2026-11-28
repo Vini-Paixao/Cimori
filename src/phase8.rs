@@ -5,13 +5,16 @@ use isle_core::phase8::{ClipRow, DownloadView, ShareView};
 use isle_core::shelf::{Shelf, ShelfItem};
 use isle_platform_win::{downloads, files, shelf_share, system_controls};
 use isle_render::phase8_view::Phase8Action;
+use isle_core::i18n::{tr, trf, trn};
 use std::{collections::HashMap, path::PathBuf, time::Duration};
 
 #[cfg(windows)]
 use isle_platform_win::clipboard::{self, ClipboardCapture, ClipboardListener, ClipboardPayload};
 
 const MAX_CLIP_IMAGES_BYTES: usize = 64 * 1024 * 1024;
-const DROP_HINT: &str = "Solte para pôr na prateleira";
+fn drop_hint() -> &'static str {
+    tr("shelf.drop_here")
+}
 
 #[derive(Default)]
 pub(super) struct Phase8 {
@@ -207,7 +210,7 @@ impl IsleApp {
                 Ok(listener) => self.phase8.clipboard = Some(listener),
                 Err(_) => self.phase8_message(
                     TabPage::Clipboard,
-                    "Não foi possível monitorar a área de transferência.".into(),
+                    tr("p8.clipboard_watch_failed").into(),
                 ),
             }
         }
@@ -337,12 +340,12 @@ impl IsleApp {
         self.phase8.clipboard_shown = Some((what.clone(), now));
         let main = &mut self.islands[0];
         let can_show = matches!(main.mode, PillMode::CompactBar | PillMode::Minimized)
-            || matches!(&main.mode, PillMode::AlertBanner { title, .. } if title == "Copiado");
+            || matches!(&main.mode, PillMode::AlertBanner { title, .. } if title == tr("p8.copied"));
         if self.state.dnd_active || !can_show {
             return;
         }
         main.mode = PillMode::AlertBanner {
-            title: "Copiado".into(),
+            title: tr("p8.copied").into(),
             subtitle: what,
         };
         main.morph((360.0, 64.0, 20.0));
@@ -366,7 +369,7 @@ impl IsleApp {
                     if bytes + png.len() > MAX_CLIP_IMAGES_BYTES {
                         self.phase8_message(
                             TabPage::Clipboard,
-                            "Limite de imagens do histórico atingido.".into(),
+                            tr("p8.image_limit").into(),
                         );
                         return;
                     }
@@ -439,7 +442,7 @@ impl IsleApp {
                 id: item.id,
                 pinned: item.pinned,
                 label: match &item.clip {
-                    Clip::Image { width, height, .. } => format!("Imagem · {width} × {height}"),
+                    Clip::Image { width, height, .. } => format!("{} · {width} × {height}", tr("p8.image")),
                     clip => clip
                         .preview()
                         .split_whitespace()
@@ -475,9 +478,9 @@ impl IsleApp {
     pub(super) fn files_over(&mut self, window: usize, over: bool) {
         self.files_over = if over { Some(window) } else { self.files_over.filter(|w| *w != window) };
         let Some(island) = self.islands.get_mut(window) else { return; };
-        let hinted = matches!(&island.mode, PillMode::AlertBanner { subtitle, .. } if subtitle == DROP_HINT);
+        let hinted = matches!(&island.mode, PillMode::AlertBanner { subtitle, .. } if subtitle == drop_hint());
         if over && matches!(island.mode, PillMode::CompactBar | PillMode::Minimized) {
-            island.mode = PillMode::AlertBanner { title: "Prateleira".into(), subtitle: DROP_HINT.into() };
+            island.mode = PillMode::AlertBanner { title: tr("tab.shelf").into(), subtitle: drop_hint().into() };
             island.morph((360.0, 64.0, 20.0));
         } else if !over && hinted {
             island.mode = PillMode::CompactBar;
@@ -489,7 +492,7 @@ impl IsleApp {
     fn announce_shelf(&mut self) {
         let main = &mut self.islands[0];
         if self.state.dnd_active || !matches!(main.mode, PillMode::CompactBar | PillMode::Minimized) { return; }
-        main.mode = PillMode::AlertBanner { title: "Prateleira".into(), subtitle: format!("Na prateleira: {}", self.phase8.shelf.items().len()) };
+        main.mode = PillMode::AlertBanner { title: tr("tab.shelf").into(), subtitle: trf("p8.on_shelf", &[("n", &self.phase8.shelf.items().len())]) };
         main.morph((360.0, 64.0, 20.0));
         self.banner_until = Some(std::time::Instant::now() + Duration::from_secs(2));
     }
@@ -522,7 +525,7 @@ impl IsleApp {
         {
             self.phase8_message(
                 TabPage::Shelf,
-                "A prateleira atingiu o limite de arquivos.".into(),
+                tr("p8.shelf_full").into(),
             );
             return false;
         }
@@ -583,7 +586,7 @@ impl IsleApp {
         match clipboard::drag_out(hwnd, &path, self.config.shelf_drag_move) {
             Ok(true) => { self.phase8.shelf.remove(&uri); self.refresh_shelf(); self.persist_phase8(); }
             Ok(false) => {}
-            Err(err) => self.phase8_message(TabPage::Shelf, format!("Não foi possível arrastar: {err}")),
+            Err(err) => self.phase8_message(TabPage::Shelf, trf("p8.drag_failed", &[("err", &err)])),
         }
     }
 
@@ -610,7 +613,7 @@ impl IsleApp {
                 return;
             }
             self.phase8.share_starting = true;
-            self.phase8_message(TabPage::Shelf, "Preparando o compartilhamento…".into());
+            self.phase8_message(TabPage::Shelf, tr("p8.share_preparing").into());
             let generation = self.phase8.share_generation;
             let idle = Duration::from_secs(u64::from(self.config.shelf_idle_minutes) * 60);
             let receive = self.config.shelf_receive;
@@ -620,7 +623,7 @@ impl IsleApp {
                 let result = (|| {
                     let address = shelf_share::local_address()?;
                     let receive = if receive { Some(std::env::var_os("APPDATA").map(PathBuf::from)
-                        .ok_or_else(|| anyhow::anyhow!("A pasta de dados do usuário não está disponível."))?.join(isle_core::data_dir::NAME).join("received")) } else { None };
+                        .ok_or_else(|| anyhow::anyhow!("{}", tr("p8.no_data_dir")))?.join(isle_core::data_dir::NAME).join("received")) } else { None };
                     shelf_share::ShelfShare::start_receiving(address, paths, idle, shelf_share::ShareOptions {
                         receive, capacity, ..Default::default()
                     }, move || {
@@ -631,7 +634,7 @@ impl IsleApp {
                         );
                     })
                 })()
-                .map_err(|err| format!("Compartilhamento indisponível. {err}"));
+                .map_err(|err| trf("p8.share_unavailable", &[("err", &err)]));
                 send(
                     &services.tx,
                     &services.waker,
@@ -670,7 +673,7 @@ impl IsleApp {
         };
         if !share.is_active() {
             self.stop_shelf_share();
-            self.phase8_message(TabPage::Shelf, "Compartilhamento encerrado.".into());
+            self.phase8_message(TabPage::Shelf, tr("p8.share_stopped").into());
             return;
         }
         let pending_code = share.pending().map(|peer| peer.code);
@@ -748,9 +751,9 @@ impl IsleApp {
         services.rt.spawn_blocking(move || {
             let msg = if clipboard::restore(HWND(handle as *mut _), &payload).is_ok() {
                 if let Some(target) = paste { let _ = clipboard::paste_into(target); }
-                "Copiado para a área de transferência."
+                tr("p8.copied_to_clipboard")
             } else {
-                "Não foi possível copiar o item."
+                tr("p8.copy_failed")
             };
             send(
                 &services.tx,
@@ -874,7 +877,7 @@ impl IsleApp {
                     if self.phase8.history.set_pinned(id, !item.pinned).is_err() {
                         self.phase8_message(
                             TabPage::Clipboard,
-                            "Limite de itens fixados atingido.".into(),
+                            tr("p8.pin_limit").into(),
                         );
                     }
                     self.refresh_clipboard_rows();
@@ -1061,7 +1064,7 @@ impl IsleApp {
                         .collect::<Vec<_>>()
                     {
                         self.alert(
-                            "USB conectado",
+                            tr("p8.usb_connected"),
                             &format!("{} ({})", drive.label, drive.letter),
                             Some(TabPage::Usb),
                         );
@@ -1151,7 +1154,7 @@ fn copy_notice(payload: &ClipboardPayload, screenshot: bool) -> Option<String> {
     match payload {
         ClipboardPayload::Files(uris) if uris.len() == 1 => clipboard::file_path(&uris[0])
             .and_then(|path| path.file_name().map(|name| name.to_string_lossy().into_owned())),
-        ClipboardPayload::Files(uris) => Some(format!("{} arquivos", uris.len())),
+        ClipboardPayload::Files(uris) => Some(trn("p8.files", uris.len() as i64, &[])),
         ClipboardPayload::Text(text) => {
             // One line, without runs of spaces.
             let mut line = String::new();
@@ -1170,7 +1173,7 @@ fn copy_notice(payload: &ClipboardPayload, screenshot: bool) -> Option<String> {
                 (!line.is_empty()).then(|| line.to_owned())
             }
         }
-        ClipboardPayload::Image { .. } => (!screenshot).then(|| "Imagem".into()),
+        ClipboardPayload::Image { .. } => (!screenshot).then(|| tr("p8.image").into()),
     }
 }
 
@@ -1232,7 +1235,7 @@ mod tests {
     fn files_over_the_pill_ask_to_let_go_and_keep_an_open_island_open() {
         let mut app = IsleApp::new(IsleConfig::default());
         app.files_over(0, true);
-        assert!(matches!(&app.islands[0].mode, PillMode::AlertBanner { subtitle, .. } if subtitle == DROP_HINT));
+        assert!(matches!(&app.islands[0].mode, PillMode::AlertBanner { subtitle, .. } if subtitle == drop_hint()));
         let later = std::time::Instant::now() + Duration::from_secs(60);
         app.on_deadlines(std::time::Instant::now());
         app.on_deadlines(later);

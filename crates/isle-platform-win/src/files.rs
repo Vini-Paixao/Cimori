@@ -28,7 +28,8 @@ fn pick_file(backup: Option<(bool, &str)>, folder: bool) -> Option<std::path::Pa
             };
             dialog.SetOptions(dialog.GetOptions().ok()? | FOS_FORCEFILESYSTEM | if folder {FOS_PICKFOLDERS} else {FILEOPENDIALOGOPTIONS(0)}).ok()?;
             if let Some((save, default_name)) = backup {
-                let filter = [COMDLG_FILTERSPEC { pszName: w!("Backup da Cimori (*.json)"), pszSpec: w!("*.json") }];
+                let name = windows::core::HSTRING::from(isle_core::i18n::tr("files.backup_filter"));
+                let filter = [COMDLG_FILTERSPEC { pszName: windows::core::PCWSTR(name.as_ptr()), pszSpec: w!("*.json") }];
                 dialog.SetFileTypes(&filter).ok()?;
                 dialog.SetDefaultExtension(w!("json")).ok()?;
                 if save {
