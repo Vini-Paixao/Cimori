@@ -15,6 +15,51 @@ fn every_pref_round_trips_through_get_and_set() {
     }
 }
 
+/// Every text the settings show is in locales/ (the base, so in every language: i18n's test).
+#[test]
+fn every_row_tab_card_and_option_has_its_text() {
+    use isle_core::i18n::lookup;
+    for p in prefs::all() {
+        assert!(lookup(&format!("pref.{}.name", p.id)).is_some(), "pref.{}.name", p.id);
+        assert!(lookup(&format!("card.{}", p.card)).is_some(), "card.{}", p.card);
+        if let PrefKind::Choice(options) = p.kind {
+            for o in options.iter().filter(|o| o.contains('.')) {
+                assert!(lookup(o).is_some(), "{} {o}", p.id);
+            }
+        }
+        if let PrefKind::Text { placeholder, .. } = p.kind {
+            assert!(!placeholder.starts_with("placeholder.") || lookup(placeholder).is_some(), "{placeholder}");
+        }
+        for (_, label) in prefs::chip_choices(p.id) {
+            assert!(lookup(label).is_some(), "{} {label}", p.id);
+        }
+    }
+    for t in SettingsTab::ALL {
+        assert!(!t.title().is_empty() && !t.subtitle().is_empty(), "{t:?}");
+    }
+    for (title, _) in prefs::WELCOME {
+        assert!(lookup(title).is_some(), "{title}");
+    }
+    for t in isle_core::state::ControlTile::CATALOG {
+        assert!(!t.label().is_empty(), "{t:?}");
+    }
+}
+
+#[test]
+fn the_language_row_lists_system_then_every_language() {
+    let p = prefs::by_id("language").unwrap();
+    assert_eq!(p.choices().len(), isle_core::i18n::LANGUAGES.len() + 1);
+    let mut c = IsleConfig::default();
+    assert_eq!((p.get)(&c), PrefValue::Index(0));
+    (p.set)(&mut c, PrefValue::Index(1));
+    assert_eq!(c.language, isle_core::i18n::LANGUAGES[0].code);
+    (p.set)(&mut c, PrefValue::Index(0));
+    assert_eq!(c.language, "");
+    // An older settings.json has no language: it follows Windows.
+    let old: IsleConfig = serde_json::from_str("{}").unwrap();
+    assert_eq!(old.language, "");
+}
+
 #[test]
 fn ids_are_unique_and_every_tab_has_a_row() {
     let mut ids: Vec<_> = prefs::all().iter().map(|p| p.id).collect();
@@ -98,7 +143,7 @@ fn another(p: &prefs::Pref, v: &prefs::PrefValue) -> Option<prefs::PrefValue> {
     use prefs::PrefValue::*;
     Some(match (&p.kind, v) {
         (PrefKind::Switch, Bool(b)) => Bool(!b),
-        (PrefKind::Choice(options), Index(i)) => Index((i + 1) % options.len()),
+        (PrefKind::Choice(_), Index(i)) => Index((i + 1) % p.choices().len()),
         (PrefKind::Slider { min, max, step, .. }, Number(n)) => Number(if (n - min).abs() > step / 2.0 { *min } else { (min + step).min(*max) }),
         (PrefKind::Color(list), Rgb(r, g, b)) => {
             let (r, g, b) = *list.iter().find(|c| **c != (*r, *g, *b))?;
@@ -194,7 +239,7 @@ fn tab_order_moves_the_shown_tabs_and_ignores_adding_or_removing() {
     // Each chip shows its tab's name.
     for t in TabPage::NAV {
         let key = prefs::tab_key(t);
-        assert_eq!(prefs::chip_choices("modules.order").iter().find(|c| c.0 == key).map(|c| c.1), Some(t.label()));
+        assert_eq!(prefs::chip_choices("modules.order").iter().find(|c| c.0 == key).map(|c| isle_core::i18n::tr(c.1)), Some(t.label()));
     }
     // A broken order on disk comes back as isle's.
     c.modules.order = [TabPage::Media; 12];

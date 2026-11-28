@@ -235,7 +235,7 @@ pub fn expanded_hitboxes(canvas: f32, w: f32, h: f32, top: f32, s: &IslandState)
             let tiles_end = control_tiles_end(n);
             // Port of ControlPanel's Edit button (mac-island 3.1.1), down in the center: on the
             // "Volume por aplicativo" row; "Concluído" on "Adicionar controles" while editing.
-            let label = if s.control_editing { "Concluído" } else { "Editar" };
+            let label = isle_core::i18n::tr(if s.control_editing { "control.done" } else { "control.edit" });
             let ew = crate::pages::BAR_TEXT.with(|t| t.width(label, 12., crate::text::Weight::Medium)) + 22.;
             if s.control_editing {
                 add(w - 20.0 - ew, control_add_top(n) - 1.0, ew, 24.0, UiAction::EditControls);

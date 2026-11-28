@@ -24,6 +24,7 @@ use isle_ai::hooks::{HookEvent, HookServer};
 use isle_core::agenda::{AgendaItem, IcsEvent, civil_from_days, days_from_civil, expand, month_len, parse_holidays, parse_ics,
 };
 use isle_core::config::IsleConfig;
+use isle_core::i18n::{tr, trf, trn};
 use isle_core::pomodoro::{Phase, Pomodoro, PomodoroConfig};
 use isle_core::spring::PillGeometry;
 use isle_core::state::MediaInfo;
@@ -297,8 +298,8 @@ fn when_text(due_ms: i64, now_ms: i64) -> String {
     let local = |ms: i64| ms.div_euclid(1000) + local_offset();
     let (due, now) = (local(due_ms), local(now_ms));
     let minute = due.rem_euclid(86_400) / 60;
-    let day = if due.div_euclid(86_400) > now.div_euclid(86_400) { "amanhã " } else { "" };
-    format!("{day}às {:02}:{:02}", minute / 60, minute % 60)
+    let time = format!("{:02}:{:02}", minute / 60, minute % 60);
+    trf(if due.div_euclid(86_400) > now.div_euclid(86_400) { "reminder.tomorrow_at" } else { "reminder.at" }, &[("time", &time)])
 }
 
 /// "Claude Code concluiu · isle-win": the AI's name, what it does, and the project when known.
@@ -319,22 +320,26 @@ fn agent_on(c: &IsleConfig, id: &str) -> bool {
     }
 }
 
+/// `doing`: a key of locales/ with the `{name}` ("agent.done"), or "" for the name alone.
 fn titled(provider: &str, doing: &str, project: &str) -> String {
     let name = match provider {
         "claude" => "Claude Code",
         "codex" => "Codex",
         other => other,
     };
+    let head = if doing.is_empty() { name.to_owned() } else { trf(doing, &[("name", &name)]) };
     if project.is_empty() {
-        format!("{name}{doing}")
+        head
     } else {
-        format!("{name}{doing} · {project}")
+        format!("{head} · {project}")
     }
 }
 
 impl IsleApp {
     pub fn new(config: IsleConfig) -> Self {
         let config = config.sanitized();
+        // The tests keep the texts they were written against (pt-BR), whatever this PC's language.
+        if !cfg!(test) { isle_platform_win::locale::apply_language(&config.language); }
         SYSTEM_ZONE.store(config.timezone_system, std::sync::atomic::Ordering::Relaxed);
         let fahrenheit = config.weather_fahrenheit;
         let (bar, bar_quota_strip, modules) = (config.bar_shown(), config.bar_quota_strip, config.modules);
@@ -490,12 +495,13 @@ impl IsleApp {
             if *verdict == ReminderDue::TooOld { continue; }
             shown += 1;
             if shown > 5 { continue; }
-            let text = if *verdict == ReminderDue::Missed { format!("{title} · era às {:02}:{:02}", minute / 60, minute % 60) }
-                else if self.config.agenda_reminder_minutes > 0 { format!("{title} · às {:02}:{:02}", minute / 60, minute % 60) }
-                else { format!("{title} · agora") };
-            self.alert("Agenda", &text, Some(TabPage::CalendarWeather));
+            let time = format!("{:02}:{:02}", minute / 60, minute % 60);
+            let key = if *verdict == ReminderDue::Missed { "agenda.was_at" }
+                else if self.config.agenda_reminder_minutes > 0 { "agenda.at" }
+                else { "agenda.now" };
+            self.alert(tr("tab.agenda"), &trf(key, &[("title", title), ("time", &time)]), Some(TabPage::CalendarWeather));
         }
-        if shown > 5 { self.alert("Agenda", &format!("e mais {} lembretes", shown - 5), Some(TabPage::CalendarWeather),
+        if shown > 5 { self.alert(tr("tab.agenda"), &trn("agenda.more", (shown - 5) as i64, &[]), Some(TabPage::CalendarWeather),
             ); }
         // Only the last two days' keys are kept.
         let today = now.div_euclid(1440);
@@ -537,17 +543,17 @@ impl IsleApp {
     pub fn refresh_timers(&mut self, now_ms: i64) {
         use isle_core::timers::clock;
         if let Some(t) = self.pomodoro.tick(now_ms) {
-            let text = if t.finished == Phase::Focus { "Foco concluído: hora da pausa" } else { "A pausa acabou: hora de focar" };
-            self.alert("Pomodoro", text, Some(TabPage::Timer));
+            let text = tr(if t.finished == Phase::Focus { "focus.focus_done" } else { "focus.break_done" });
+            self.alert(tr("focus.pomodoro"), text, Some(TabPage::Timer));
         }
         if self.countdown.tick(now_ms) {
-            self.alert("Timer", "O tempo acabou", Some(TabPage::Timer));
+            self.alert(tr("focus.timer"), tr("focus.time_up"), Some(TabPage::Timer));
         }
         // isle's reminders are kept until shown: one due while the island was closed shows now.
         let due: Vec<_> = self.reminders.items().iter().filter(|r| r.due_ms <= now_ms).cloned().collect();
         for r in &due {
             self.reminders.dismiss(r.id);
-            self.alert("Lembrete", &r.text, Some(TabPage::Timer));
+            self.alert(tr("focus.reminder"), &r.text, Some(TabPage::Timer));
         }
         if !due.is_empty() { self.save_reminders(); }
         let reminders = self.reminders.items().iter().map(|r| isle_core::timers::ReminderLine {
@@ -577,14 +583,14 @@ impl IsleApp {
         // (ends at, text, shown in the Next slot?)
         let mut ending = Vec::new();
         if p.phase != Phase::Idle {
-            let name = if p.phase == Phase::Focus { "Foco" } else { "Pausa" };
+            let name = tr(if p.phase == Phase::Focus { "focus.focus" } else { "focus.break" });
             ending.push((p.ends_at_ms.unwrap_or(i64::MAX), format!("{name} {}", clock(p.remaining_ms, true)), self.config.countdown_pomodoro));
         }
         if self.countdown.started() {
-            ending.push((self.countdown.deadline().unwrap_or(i64::MAX), format!("Timer {}", clock(self.countdown.remaining(now_ms), true)), self.config.countdown_timer));
+            ending.push((self.countdown.deadline().unwrap_or(i64::MAX), format!("{} {}", tr("focus.timer"), clock(self.countdown.remaining(now_ms), true)), self.config.countdown_timer));
         }
         let elapsed = self.stopwatch.elapsed(now_ms);
-        let stopwatch = (elapsed > 0).then(|| format!("Cronômetro {}", clock(elapsed, false)));
+        let stopwatch = (elapsed > 0).then(|| format!("{} {}", tr("focus.stopwatch"), clock(elapsed, false)));
         let first = |next_only: bool| ending.iter().filter(|e| !next_only || e.2).min_by_key(|e| e.0).map(|e| e.1.clone());
         self.state.timer_text = first(false).or_else(|| stopwatch.clone());
         let stopwatch = stopwatch.filter(|_| self.config.countdown_timer);
@@ -628,6 +634,11 @@ impl IsleApp {
     pub(crate) fn apply_config(&mut self, old: &IsleConfig, save: bool) {
         self.config = std::mem::take(&mut self.config).sanitized();
         let c = self.config.clone();
+        if old.language != c.language {
+            // Every text is looked up as it is drawn: the island and the settings change on the next frame.
+            isle_platform_win::locale::apply_language(&c.language);
+            self.refresh_settings_view();
+        }
         if old.icon_pack != c.icon_pack || old.icon_folder != c.icon_folder { self.start_icons(); }
         if !c.ui.arrow_pins || !c.auto_hide { for island in &mut self.islands { island.pinned = false; } }
         isle_render::set_accent(c.accent_rgb);
@@ -1053,10 +1064,10 @@ impl IsleApp {
         self.state.audio_outputs = status.outputs;
         let main = &mut self.islands[0];
         let can_show = matches!(main.mode, PillMode::CompactBar | PillMode::Minimized)
-            || matches!(&main.mode, PillMode::AlertBanner { title, .. } if title == "Volume");
+            || matches!(&main.mode, PillMode::AlertBanner { title, .. } if title == tr("banner.volume"));
         if changed && can_show {
-            main.mode = PillMode::AlertBanner { title: "Volume".into(),
-                subtitle: if status.muted { "Som silenciado".into() } else { format!("{}%", self.state.volume_pct) },
+            main.mode = PillMode::AlertBanner { title: tr("banner.volume").into(),
+                subtitle: if status.muted { tr("banner.muted").into() } else { format!("{}%", self.state.volume_pct) },
             };
             let (w, h) = self.config.ui.banner_px();
             let k = self.config.ui.banner_scale();
@@ -1271,7 +1282,7 @@ impl IsleApp {
             return;
         }
         if matches!(tile, C::Timer | C::Pomodoro | C::Stopwatch | C::Alarms | C::Weather | C::NextEvent) {
-            self.state.control_error = Some(format!("{}: ligue o módulo nas configurações", tile.label()));
+            self.state.control_error = Some(trf("control.module_off", &[("name", &tile.label())]));
             return;
         }
         if tile == C::Microphone {
@@ -1493,8 +1504,8 @@ impl IsleApp {
             HookEvent::Ask { request, reply } if !command_fits(&request.input) => {
                 // Dropping `reply` answers nothing: Claude asks in its terminal, where the command shows whole.
                 drop(reply);
-                self.agent_banner(titled(&request.provider, " pede permissão", &request.project),
-                    "Comando longo demais para a ilha: responda no terminal".into(), (360.0, 64.0, 20.0), None);
+                self.agent_banner(titled(&request.provider, "agent.permission", &request.project),
+                    tr("agent.too_long").into(), (360.0, 64.0, 20.0), None);
             }
             HookEvent::Ask { request, reply } => {
                 let card = PermissionCard {
@@ -1518,9 +1529,9 @@ impl IsleApp {
                 if event.kind == "permission" && self.state.pending_permission.is_some() => {}
             HookEvent::Agent(event) => {
                 let doing = match event.kind.as_str() {
-                    "done" => " concluiu",
-                    "permission" => " pede permissão",
-                    _ => " aguarda você",
+                    "done" => "agent.done",
+                    "permission" => "agent.permission",
+                    _ => "agent.waiting",
                 };
                 let glow = (event.kind == "done").then_some(0.6);
                 self.agent_banner(titled(&event.provider, doing, &event.project), event.message, (360.0, 64.0, 20.0), glow);
@@ -1546,15 +1557,15 @@ impl IsleApp {
                 {
                     match alert {
                         QuotaAlertEvent::Threshold80(p) => {
-                            self.agent_banner(format!("{}: 80% da cota", quota_name(p)),
-                                "Atenção ao consumo da janela atual".to_string(), (340.0, 58.0, 18.0), None);
+                            self.agent_banner(trf("quota.80", &[("name", &quota_name(p))]),
+                                tr("quota.80_sub").to_string(), (340.0, 58.0, 18.0), None);
                         }
                         QuotaAlertEvent::Threshold95(p) => {
-                            self.agent_banner(format!("{}: 95% da cota!", quota_name(p)),
-                                "Cota prestes a esgotar".to_string(), (340.0, 58.0, 18.0), Some(0.9));
+                            self.agent_banner(trf("quota.95", &[("name", &quota_name(p))]),
+                                tr("quota.95_sub").to_string(), (340.0, 58.0, 18.0), Some(0.9));
                         }
                         QuotaAlertEvent::QuotaResetReady { title, .. } => {
-                            self.agent_banner(title, "Cota renovada e pronta para uso".to_string(), (360.0, 64.0, 20.0), Some(1.0));
+                            self.agent_banner(title, tr("quota.reset_sub").to_string(), (360.0, 64.0, 20.0), Some(1.0));
                         }
                     }
                 }
@@ -2296,8 +2307,8 @@ impl IsleApp {
                         loop {
                             let result = match isle_platform_win::weather::fetch_url_text(&url).await {
                                 Ok(json) => isle_core::weather::Weather::from_open_meteo(&weather.label, &json)
-                                    .map_err(|e| format!("resposta inválida do Open-Meteo: {e}")),
-                                Err(e) => Err(format!("Open-Meteo indisponível: {e}")),
+                                    .map_err(|e| trf("weather.bad_answer", &[("err", &e)])),
+                                Err(e) => Err(trf("weather.unavailable", &[("err", &e)])),
                             };
                             send(&tx, &waker, AppEvent::Weather(result));
                             tokio::time::sleep(std::time::Duration::from_secs(isle_core::weather::REFRESH_SECS)).await;

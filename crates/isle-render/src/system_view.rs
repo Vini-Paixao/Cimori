@@ -1,4 +1,5 @@
 use super::*;
+use isle_core::i18n::{tr, tr_or, trn};
 impl PillRenderer {
     pub(super) fn control_view(
         &mut self,
@@ -56,15 +57,15 @@ impl PillRenderer {
                             white(),
                         );
                         let sub = match t {
-                            ControlTile::Wifi => s.wifi_name.as_deref().unwrap_or("Configurações"),
+                            ControlTile::Wifi => s.wifi_name.as_deref().unwrap_or(tr("control.settings")),
                             ControlTile::Bluetooth | ControlTile::NightLight => {
                                 match if t == ControlTile::Bluetooth { s.bluetooth_on } else { s.night_light_on } {
-                                    Some(true) => "Ligado",
-                                    Some(false) => "Desligado",
-                                    None => "Configurações",
+                                    Some(true) => tr("control.on"),
+                                    Some(false) => tr("control.off"),
+                                    None => tr("control.settings"),
                                 }
                             }
-                            ControlTile::Microphone if s.mic_available => if s.mic_muted { "Silenciado" } else { "Ligado" },
+                            ControlTile::Microphone if s.mic_available => tr(if s.mic_muted { "control.muted" } else { "control.on" }),
                             _ => "",
                         };
                         self.clipped_label(
@@ -147,12 +148,12 @@ impl PillRenderer {
                     // Port of ControlPanel's Edit button (mac-island 3.1.1); "Concluído" while editing.
                     let editing = s.control_editing;
                     self.round(hb.x, hb.y, hb.w, hb.h, hb.h / 2., if editing { tint() } else { surface() });
-                    let label = if editing { "Concluído" } else { "Editar" };
+                    let label = tr(if editing { "control.done" } else { "control.edit" });
                     self.centered_label(label, hb.x + hb.w / 2., centered_top(hb.y, hb.h, 12.), 12., Weight::Medium, if editing { accent() } else { white() });
                 }
                 UiAction::OpenMixer => {
                     self.label(
-                        "Volume por aplicativo",
+                        tr("control.app_volume"),
                         x + 20.,
                         hb.y + 5.,
                         11.,
@@ -164,7 +165,7 @@ impl PillRenderer {
                         self.clipped_label(
                             s.control_error
                                 .as_deref()
-                                .unwrap_or("Nenhum aplicativo com áudio"),
+                                .map_or(tr("control.no_audio_apps"), tr_or),
                             x + 20.,
                             hb.y + 32.,
                             w - 40.,
@@ -211,10 +212,10 @@ impl PillRenderer {
         if s.control_editing {
             let top = crate::layout::control_add_top(s.control_tiles.len());
             let missing = crate::layout::missing_controls(s).len();
-            self.label(if missing > 0 { "Adicionar controles" } else { "Todos os controles estão na central" },
+            self.label(tr(if missing > 0 { "control.add" } else { "control.all_added" }),
                 x + 20., y + top + 4., 12., Weight::Semibold, muted());
             if s.control_tiles.is_empty() {
-                self.clipped_label("Toque num controle abaixo para pô-lo na central", x + 20., y + CONTENT + 2., w - 40., 11., Weight::Regular, muted());
+                self.clipped_label(tr("control.tap_to_add"), x + 20., y + CONTENT + 2., w - 40., 11., Weight::Regular, muted());
             }
             return;
         }
@@ -222,7 +223,7 @@ impl PillRenderer {
             self.clipped_label(
                 s.control_error
                     .as_deref()
-                    .unwrap_or("Saída de áudio indisponível"),
+                    .map_or(tr("control.no_output"), tr_or),
                 x + 20.,
                 y + crate::layout::control_tiles_end(s.control_tiles.len()) + 20.,
                 w - 40.,
@@ -244,7 +245,7 @@ impl PillRenderer {
         let list = s.notifications.ordered();
         let page = s.notification_page.min(s.notifications.last_page());
         self.label(
-            "Seus avisos",
+            tr("notices.title"),
             x + 20.,
             y + CONTENT + 4.,
             18.,
@@ -256,10 +257,10 @@ impl PillRenderer {
                 x,
                 y + CONTENT + 40.,
                 w,
-                "Tudo em dia por aqui.",
+                tr("notices.empty_title"),
                 s.notification_error
                     .as_deref()
-                    .unwrap_or("Quando chegar um aviso, ele aparece aqui."),
+                    .map_or(tr("notices.empty_sub"), tr_or),
                 Icon::Bell,
             );
             return;
@@ -310,7 +311,7 @@ impl PillRenderer {
                     {
                         self.round(hb.x + 12., hb.y + 35., hb.w - 66., 24., 7., surface());
                         let text = if reply.text.is_empty() {
-                            "Digite uma resposta".to_owned()
+                            tr("notices.reply_placeholder").to_owned()
                         } else {
                             format!("{}|", reply.text)
                         };
@@ -354,9 +355,9 @@ impl PillRenderer {
         }
         self.clipped_label(
             &format!(
-                "{} avisos · {} não lidos · {}/{}",
-                list.len(),
-                s.notifications.unread_count(),
+                "{} · {} · {}/{}",
+                trn("notices.count", list.len() as i64, &[]),
+                trn("notices.unread", s.notifications.unread_count() as i64, &[]),
                 page + 1,
                 s.notifications.last_page() + 1
             ),
@@ -379,7 +380,7 @@ impl PillRenderer {
     ) {
         let body = y + crate::layout::TRAY_DROP;
         self.label(
-            "Por perto.",
+            tr("tray.title"),
             x + 20.,
             body + CONTENT + 4.,
             20.,
@@ -392,10 +393,10 @@ impl PillRenderer {
                 x,
                 body + CONTENT + 37.,
                 w,
-                "Tudo à mão",
+                tr("tray.empty_title"),
                 s.tray_error
                     .as_deref()
-                    .unwrap_or("Seus aplicativos fixados estão na barra compacta."),
+                    .map_or(tr("tray.empty_sub"), tr_or),
                 Icon::Tray,
             );
             return;
@@ -423,7 +424,7 @@ impl PillRenderer {
                     } else {
                         self.draw_tray_icon(item, hb.x + (hb.w - 28.) / 2., hb.y + 8., 28.);
                         let name = self.text.ellipsize(
-                            item.display_name.lines().next().unwrap_or("Aplicativo"),
+                            item.display_name.lines().next().unwrap_or(tr("tray.app")),
                             hb.w - 8.,
                             10.,
                             Weight::Medium,
@@ -453,7 +454,7 @@ impl PillRenderer {
         self.clipped_label(
             s.tray_error
                 .as_deref()
-                .unwrap_or("Clique direito abre o menu do aplicativo"),
+                .map_or(tr("tray.hint"), tr_or),
             x + 20.,
             y + h - 33.,
             w - 140.,
@@ -470,7 +471,7 @@ impl PillRenderer {
     pub(super) fn power_view(&mut self, canvas: f32, x: f32, y: f32, w: f32, h: f32, s: &IslandState) {
         use isle_core::power::PowerAction;
         if s.power.shown(s.hibernate_allowed).is_empty() {
-            self.clipped_label("Ligue alguma ação em Configurações → Central de controle", x + 20., y + CONTENT + 30., w - 40., 12., Weight::Regular, muted());
+            self.clipped_label(tr("power.none_on"), x + 20., y + CONTENT + 30., w - 40., 12., Weight::Regular, muted());
             return;
         }
         for hb in compute_hitboxes(canvas, w, h, y, s) {
@@ -492,7 +493,7 @@ impl PillRenderer {
                 }
                 UiAction::PowerCancel | UiAction::PowerConfirm => {
                     let confirm = hb.action == UiAction::PowerConfirm;
-                    let label = if confirm { s.power_confirm.map_or("", |a| a.name()) } else { "Cancelar" };
+                    let label = if confirm { s.power_confirm.map_or("", |a| a.name()) } else { tr("power.cancel") };
                     self.round(hb.x, hb.y, hb.w, hb.h, hb.h / 2., if confirm { red() } else { surface() });
                     self.centered_label(label, hb.x + hb.w / 2., centered_top(hb.y, hb.h, 12.), 12., Weight::Semibold, white());
                 }

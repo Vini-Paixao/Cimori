@@ -47,7 +47,7 @@ impl IsleApp {
             if let Err(err) = self.overlay.take_keyboard(island) {
                 self.chat_window = None;
                 self.state.chat.error =
-                    Some(format!("Clique na caixa de texto para digitar: {err}"));
+                    Some(isle_core::i18n::trf("chat.click_to_type", &[("err", &err)]));
             }
         }
     }
@@ -57,7 +57,7 @@ impl IsleApp {
         }
         if self.state.chat.busy {
             self.state.chat.busy = false;
-            self.state.chat.error = Some("Resposta interrompida.".into());
+            self.state.chat.error = Some(isle_core::i18n::tr("chat.stopped").into());
             self.state.chat.generation = self.state.chat.generation.wrapping_add(1);
         }
     }
@@ -123,7 +123,7 @@ impl IsleApp {
     }
     fn send_ai(&mut self) {
         let Some(tx) = &self.chat_tx else {
-            self.state.chat.error = Some("Serviço de chat indisponível.".into());
+            self.state.chat.error = Some(isle_core::i18n::tr("chat.unavailable").into());
             return;
         };
         if let Some((generation, items)) = self.state.chat.begin() {
@@ -140,7 +140,7 @@ impl IsleApp {
                     generation,
                     "",
                     true,
-                    Some("Serviço de chat encerrado.".into()),
+                    Some(isle_core::i18n::tr("chat.ended").into()),
                 );
             }
         }
@@ -205,7 +205,7 @@ impl IsleApp {
             UiAction::AiIdea(i) => {
                 // Port of the ideas' click (isle voice.js): the words in the field, asked at once or left to finish.
                 let Some((_, words, send)) = isle_render::chat::IDEAS.get(i) else { return };
-                self.state.chat.input.text = (*words).into();
+                self.state.chat.input.text = isle_core::i18n::tr(words).into();
                 self.focus_ai(island);
                 if *send { self.send_ai(); }
             }

@@ -3,6 +3,7 @@
 
 //! The read-only part of Isle's phone-sharing HTTP server, using one request per connection.
 
+use isle_core::i18n::tr;
 use std::fmt::Write as _;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::sync::atomic::Ordering;
@@ -157,7 +158,13 @@ pub(super) async fn drain_refused(stream: &mut TcpStream, remaining: u64) {
     }).await;
 }
 
-const HTML_START: &str = r#"<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cimori · Prateleira</title><style>
+/// The page's head, in the island's language (its code and the shelf's name).
+fn html_start() -> String {
+    format!(r#"<!doctype html><html lang="{}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cimori · {}</title>{STYLE}"#,
+        isle_core::i18n::current().code, html_text(tr("tab.shelf")))
+}
+
+const STYLE: &str = r#"<style>
 body{font:1rem/1.5 system-ui,sans-serif;color:#f5f5f5;background:#18181b;margin:0}main{max-width:32rem;margin:0 auto;padding:2rem 1.25rem}h1{font-size:1.65rem;margin:0 0 1rem}a{display:block;color:inherit;background:#303036;border-radius:.65rem;padding:.85rem;margin:.55rem 0;overflow-wrap:anywhere}strong{font-size:2rem;letter-spacing:.18em}</style>"#;
 
 pub(super) async fn send_pending(
@@ -170,23 +177,31 @@ pub(super) async fn send_pending(
         format!("Set-Cookie: cimori={value}; Path=/{token}/; HttpOnly; SameSite=Strict\r\n")
     });
     let page = format!(
-        "{HTML_START}<meta http-equiv=\"refresh\" content=\"2\"></head><body><main>\
-         <h1>Autorizar este celular</h1><strong>{code}</strong>\
-         <p>Confira o código na Cimori e toque em Permitir.</p></main></body></html>"
+        "{}<meta http-equiv=\"refresh\" content=\"2\"></head><body><main>\
+         <h1>{}</h1><strong>{code}</strong><p>{}</p></main></body></html>",
+        html_start(), html_text(tr("share.authorize")), html_text(tr("share.check_code"))
     );
     send_body(stream, 200, "text/html; charset=utf-8", &headers, &page).await
 }
 
 pub(super) async fn send_files(stream: &mut TcpStream, files: &[SharedFile], receive: bool) -> io::Result<()> {
-    let mut page = format!("{HTML_START}</head><body><main><h1>Arquivos da Cimori</h1>");
+    let mut page = format!("{}</head><body><main><h1>{}</h1>", html_start(), html_text(tr("share.files")));
     if files.is_empty() {
-        page.push_str("<p>A prateleira está vazia.</p>");
+        let _ = write!(page, "<p>{}</p>", html_text(tr("share.empty")));
     }
     for (index, file) in files.iter().enumerate() {
         let name = html_text(&file.name);
         let _ = write!(page, "<a href=\"file/{index}\" download>{name}</a>");
     }
-    if receive { page.push_str(include_str!("upload.html")); }
+    if receive {
+        let js = |key: &'static str| serde_json::to_string(tr(key)).unwrap_or_default();
+        page.push_str(&include_str!("upload.html")
+            .replace("__TITLE__", &html_text(tr("share.send_title")))
+            .replace("__SENDING__", &js("share.sending"))
+            .replace("__ON_SHELF__", &js("share.on_shelf"))
+            .replace("__NOT_SENT__", &js("share.not_sent"))
+            .replace("__CHECK_WIFI__", &js("share.check_wifi")));
+    }
     page.push_str("</main></body></html>");
     send_body(stream, 200, "text/html; charset=utf-8", "", &page).await
 }

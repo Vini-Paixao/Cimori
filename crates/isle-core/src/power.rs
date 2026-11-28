@@ -22,23 +22,23 @@ impl PowerAction {
 
     /// Port of PowerPanel::Name.
     pub fn name(self) -> &'static str {
-        match self {
-            Self::Sleep => "Suspender",
-            Self::Hibernate => "Hibernar",
-            Self::Restart => "Reiniciar",
-            Self::ShutDown => "Desligar",
-            Self::Lock => "Bloquear",
-            Self::SignOut => "Sair",
-        }
+        crate::i18n::tr(match self {
+            Self::Sleep => "power.sleep",
+            Self::Hibernate => "power.hibernate",
+            Self::Restart => "power.restart",
+            Self::ShutDown => "power.shut_down",
+            Self::Lock => "power.lock",
+            Self::SignOut => "power.sign_out",
+        })
     }
 
     /// Port of PowerPanel::Question (only the actions that ask).
     pub fn question(self) -> &'static str {
-        match self {
-            Self::Restart => "Reiniciar agora?",
-            Self::ShutDown => "Desligar agora?",
-            _ => "Sair agora?",
-        }
+        crate::i18n::tr(match self {
+            Self::Restart => "power.ask_restart",
+            Self::ShutDown => "power.ask_shut_down",
+            _ => "power.ask_sign_out",
+        })
     }
 }
 

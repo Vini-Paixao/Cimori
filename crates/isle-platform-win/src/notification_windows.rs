@@ -3,6 +3,7 @@
 // Ported from Mac Island & Dock v3.1.0: Sqlite/ReadNewToasts/ToastThreadProc,
 // AppDisplayName, StartToastWatch and ShortcutKeyProc; read-only Rust worker.
 
+use isle_core::i18n::{trf};
 use super::{arrival_ms, parse_toast, KeyDisposition, NotificationEvent, ReadCursor, ShortcutAction, ShortcutState};
 use anyhow::{anyhow, bail, Context, Result};
 use isle_core::notifications::Notification;
@@ -391,13 +392,13 @@ pub(super) fn spawn(send: SendEvent, win_n: bool, icons: bool) {
     }
     std::thread::spawn(move || unsafe {
         if let Err(err) = CoInitializeEx(None,COINIT_MULTITHREADED).ok() {
-            send(NotificationEvent::Status(Some(format!("Notificações: {err}")))); return;
+            send(NotificationEvent::Status(Some(trf("errors.notifications", &[("err", &err)])))); return;
         }
         let icons = icons.then(|| crate::notification_icons::Resolver::new(send.clone()));
         let mut cursor = ReadCursor::default();
         loop {
             if let Err(err) = watch(&send,&mut cursor,icons.as_ref()) {
-                send(NotificationEvent::Status(Some(format!("Notificações indisponíveis: {err}"))));
+                send(NotificationEvent::Status(Some(trf("errors.notifications", &[("err", &err)]))));
                 // Fault recovery only; healthy workers wait indefinitely on WNF/directory events.
                 std::thread::sleep(Duration::from_secs(30));
             }

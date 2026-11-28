@@ -10,6 +10,7 @@
 // buttons needed (the mac-island hides the taskbar). Without it, nothing
 // arrives and the UI Automation path in win.rs is used.
 
+use isle_core::i18n::{tr};
 use super::win::program_name;
 use isle_core::tray::TrayItem;
 use std::cell::RefCell;
@@ -220,7 +221,7 @@ fn post(target: &Target, message: u32, newer: bool) {
 /// NIN_SELECT after a left click or WM_CONTEXTMENU after a right one (PostTrayIconRelease).
 pub(super) fn click(target: &Target, right: bool) -> anyhow::Result<()> {
     unsafe {
-        anyhow::ensure!(target.callback != 0 && IsWindow(HWND(target.owner as *mut _)).as_bool(), "O app deste ícone não responde a cliques");
+        anyhow::ensure!(target.callback != 0 && IsWindow(HWND(target.owner as *mut _)).as_bool(), "{}", tr("errors.tray_click"));
     }
     const NIN_SELECT: u32 = WM_USER;
     let unknown = target.version == VERSION_UNKNOWN;

@@ -30,7 +30,8 @@ It is free software (GPL-3.0), written in Rust, with no Electron and no embedded
 and CPU. It was born from two free projects, [isle](https://github.com/zickrian/isle) by zickrian and
 [Mac Island & Dock](https://windhawk.net/mods/mac-island-dock) by caliberda.
 
-> The interface is in Brazilian Portuguese for now. The clips below show it as it is.
+> The interface speaks English and Brazilian Portuguese, following Windows (Settings → General →
+> Language). Want it in yours? See [Adding a language](locales/README.md).
 
 ## Contents
 
@@ -191,6 +192,10 @@ cargo test --workspace
 .\scripts\release.ps1          # dist\: the portable zip and, with Inno Setup 6, the installer
 .\scripts\readme-media.ps1     # docs\media\: this README's video and clips (needs ffmpeg)
 ```
+
+**Languages.** Every text lives in [`locales/`](locales/), one file per language; a test checks that
+they all have the same keys. [Adding a language](locales/README.md) takes one file and one line of
+code. `.\scripts\readme-media.ps1 -Lang en-US` draws the video and clips in English.
 
 **Releasing.** Once CI passes on `main`, GitHub Actions publishes the Windows x64 installer, the
 portable ZIP and `SHA256SUMS.txt`. The version moves up a patch from the highest published tag (from

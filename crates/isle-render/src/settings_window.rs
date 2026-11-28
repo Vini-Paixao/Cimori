@@ -310,10 +310,11 @@ mod win {
                 let _ = RegisterClassExW(&wc);
                 let (work, scale) = work_areas();
                 let (x, y, w, h) = fit_placement(saved, &work, scale);
+                let title = windows::core::HSTRING::from(isle_core::i18n::tr("settings.window_title"));
                 let hwnd = CreateWindowExW(
                     WS_EX_APPWINDOW,
                     class,
-                    w!("Cimori — Configurações"),
+                    &title,
                     WS_OVERLAPPEDWINDOW,
                     x,
                     y,

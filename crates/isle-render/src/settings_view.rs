@@ -2,6 +2,7 @@
 //! as the island: the preview is the real bar.
 use super::*;
 use crate::settings::{self, Layout, RowBox, SettingsAction, SettingsView};
+use isle_core::i18n::tr;
 use isle_core::prefs::{PrefKind, PrefValue, SettingsTab};
 
 fn win_bg() -> Color {
@@ -82,7 +83,7 @@ impl PillRenderer {
         self.round(l.nav_w, 0., w - l.nav_w, settings::HEADER, 0., win_bg());
         let pad = if l.narrow { 16. } else { 32. };
         let searching = !view.search.trim().is_empty();
-        let title = if searching { "Busca" } else { view.tab.title() };
+        let title = if searching { tr("settings.search_title") } else { view.tab.title() };
         self.label(title, l.nav_w + pad, 18., 22., Weight::Semibold, white());
         let sub = view.status.clone().unwrap_or_else(|| if searching { String::new() } else { view.tab.subtitle().to_string() });
         if !l.narrow && !sub.is_empty() {
@@ -145,7 +146,7 @@ impl PillRenderer {
         self.ui_icon(Icon::Search, x + 16., y + h / 2., 14., muted());
         let typing = view.focus == Some(settings::Focus::Search);
         let (text, color) = if view.search.is_empty() && !typing {
-            ("Buscar configuração".to_string(), muted())
+            (tr("settings.search_placeholder").to_string(), muted())
         } else {
             (view.search.clone(), white())
         };
@@ -184,7 +185,7 @@ impl PillRenderer {
 
     fn settings_preview(&mut self, (x, y, w, h): (f32, f32, f32, f32), view: &SettingsView, cfg: &IsleConfig, state: &IslandState, l: &Layout) {
         self.round(x, y, w, h, 12., Color::from_rgba8(44, 49, 58, 255));
-        self.label("PRÉVIA", x + 14., y + 10., 10., Weight::Semibold, faint());
+        self.label(tr("settings.preview"), x + 14., y + 10., 10., Weight::Semibold, faint());
         let mut st = state.clone();
         st.mode = PillMode::CompactBar;
         st.bar = cfg.bar_shown();
@@ -270,7 +271,7 @@ impl PillRenderer {
         // The name and its description.
         let desc = settings::desc_lines(row, &self.text, view);
         let (cx, cy, cw, ch) = settings::control_rect(row, &self.text);
-        let name = self.text.ellipsize(p.name, settings::name_room(row, &self.text, view), 13., Weight::Regular);
+        let name = self.text.ellipsize(p.name(), settings::name_room(row, &self.text, view), 13., Weight::Regular);
         if desc.is_empty() {
             self.label(&name, row.x, centered_top(row.y, row.head, 13.), 13., Weight::Regular, white());
         } else {
@@ -288,7 +289,8 @@ impl PillRenderer {
                 let knob = if on { cx + cw - ch / 2. } else { cx + ch / 2. };
                 self.circle(knob, cy + ch / 2., ch / 2. - 3., if on { white() } else { Color::from_rgba8(207, 210, 215, 255) });
             }
-            PrefKind::Choice(options) => {
+            PrefKind::Choice(_) => {
+                let options = p.choices();
                 if settings::listed(p.id) {
                     let chosen = if let PrefValue::Index(i) = value { i } else { 0 };
                     for (i,o) in options.iter().enumerate() {
@@ -338,7 +340,7 @@ impl PillRenderer {
                 let current = if let PrefValue::Text(t) = value { t } else { String::new() };
                 let (shown, color) = match &editing {
                     Some(t) => (t.clone(), white()),
-                    None if current.is_empty() => (placeholder.to_string(), faint()),
+                    None if current.is_empty() => (tr(placeholder).to_string(), faint()),
                     None if secret => ("••••••••".to_string(), white()),
                     None => (current, white()),
                 };
@@ -363,7 +365,7 @@ impl PillRenderer {
             PrefKind::Action(a) => {
                 let confirm = view.confirm == Some(a);
                 self.round(cx, cy, cw, ch, 8., if confirm { accent() } else { card2() });
-                let label = if confirm { "Confirmar?" } else { settings::action_label(p) };
+                let label = if confirm { tr("settings.confirm") } else { settings::action_label(p) };
                 self.centered_label(label, cx + cw / 2., centered_top(cy, ch, 12.), 12., Weight::Medium, if confirm { ink() } else { white() });
             }
             PrefKind::Chips => {
@@ -424,7 +426,7 @@ impl PillRenderer {
                 let code = if let PrefValue::Index(i) = value { i as u32 } else { 0 };
                 self.round(cx, cy, cw, ch, 8., if recording { tint() } else { well() });
                 let (text, color) = if recording {
-                    ("Pressione as teclas…".to_string(), accent())
+                    (tr("settings.press_keys").to_string(), accent())
                 } else {
                     (isle_core::shortcut::text(code), if code == 0 { faint() } else { white() })
                 };

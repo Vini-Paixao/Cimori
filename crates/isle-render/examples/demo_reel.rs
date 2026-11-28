@@ -4,7 +4,8 @@
 //! captured from a real screen.
 //!
 //! `cargo run --release -p isle-render --example demo_reel -- <out.mp4> [chapters.txt]` (needs ffmpeg
-//! on PATH). `scripts/readme-media.ps1` cuts the README's clips from it.
+//! on PATH); `CIMORI_LANG=en-US` draws it in another language of locales/ (pt-BR otherwise).
+//! `scripts/readme-media.ps1` cuts the README's clips from it.
 
 use isle_core::config::IsleConfig;
 use isle_core::spring::PillGeometry;
@@ -268,7 +269,15 @@ impl Reel {
     }
 }
 
+/// The made-up data in the reel's language: pt-BR, or English for any other.
+fn say(pt: &'static str, en: &'static str) -> &'static str {
+    if isle_core::i18n::current().code == "pt-BR" { pt } else { en }
+}
+
 fn run() {
+    if let Ok(code) = std::env::var("CIMORI_LANG") {
+        isle_core::i18n::set(isle_core::i18n::resolve(&code, &[]));
+    }
     let out = std::env::args().nth(1).unwrap_or_else(|| "demo.mp4".into());
     let chapters_file = std::env::args().nth(2);
     let mut ffmpeg = std::process::Command::new("ffmpeg")
@@ -284,7 +293,7 @@ fn run() {
     state.control_tiles = cfg.control_tiles.clone();
     state.bar = cfg.bar_shown();
     state.clock_text = "21:41".into();
-    state.date_text = "sex 27 nov".into();
+    state.date_text = isle_core::clock::date_text(NOW_MS / 1000 + UTC_OFFSET, &cfg);
     state.utc_offset_s = UTC_OFFSET;
     state.today = (NOW_MS / 1000 + UTC_OFFSET).div_euclid(86_400);
     state.agenda_day = state.today;
@@ -293,26 +302,28 @@ fn run() {
         artwork: Some(cover()), title: "Horizonte".into(), artist: "Cimori Sessions".into(),
         playing: true, position_ms: 84_000, duration_ms: 222_000, sampled_at_ms: NOW_MS,
     });
-    state.active_lyric_line = Some("A tarde cai devagar sobre as dunas".into());
+    state.active_lyric_line = Some(say("A tarde cai devagar sobre as dunas", "The evening settles slowly on the dunes").into());
     // The control center.
     state.audio_available = true;
     state.mic_available = true;
     state.volume_pct = 72;
     state.wifi_connected = Some(true);
-    state.wifi_name = Some("Casa · 5 GHz".into());
+    state.wifi_name = Some(say("Casa · 5 GHz", "Home · 5 GHz").into());
     state.bluetooth_on = Some(true);
     state.night_light_on = Some(false);
-    state.audio_outputs = ["Fones de ouvido", "Alto-falantes"].iter().enumerate()
+    state.audio_outputs = [say("Fones de ouvido", "Headphones"), say("Alto-falantes", "Speakers")].iter().enumerate()
         .map(|(i, n)| isle_core::state::AudioOutput { id: i.to_string(), name: (*n).into(), is_default: i == 0 }).collect();
-    state.app_volumes = [("system", "Sons do sistema", 100), ("music", "Música", 64), ("browser", "Navegador", 80)].into_iter()
+    state.app_volumes = [("system", say("Sons do sistema", "System sounds"), 100), ("music", say("Música", "Music"), 64), ("browser", say("Navegador", "Browser"), 80)].into_iter()
         .map(|(id, name, v)| isle_core::state::AppVolume { id: id.into(), name: name.into(), volume_pct: v, muted: false }).collect();
     // The agenda.
-    let ics = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:a\r\nDTSTART:20261127T130000Z\r\nSUMMARY:Daily do time\r\nEND:VEVENT\r\n\
-        BEGIN:VEVENT\r\nUID:b\r\nDTSTART;VALUE=DATE:20261127\r\nSUMMARY:Lançamento da Cimori\r\nEND:VEVENT\r\n\
-        BEGIN:VEVENT\r\nUID:c\r\nDTSTART:20261127T223000Z\r\nSUMMARY:Jantar com a família\r\nEND:VEVENT\r\n\
-        BEGIN:VEVENT\r\nUID:d\r\nDTSTART:20261130T170000Z\r\nSUMMARY:Revisão do projeto\r\nEND:VEVENT\r\nEND:VCALENDAR";
-    state.agenda = isle_core::agenda::expand(&isle_core::agenda::parse_ics(ics, UTC_OFFSET), state.today - 40, state.today + 400);
-    state.agenda.extend(isle_core::agenda::parse_holidays(r#"[{"date":"2026-12-25","localName":"Natal"}]"#));
+    let ics = format!("BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:a\r\nDTSTART:20261127T130000Z\r\nSUMMARY:{}\r\nEND:VEVENT\r\n\
+        BEGIN:VEVENT\r\nUID:b\r\nDTSTART;VALUE=DATE:20261127\r\nSUMMARY:{}\r\nEND:VEVENT\r\n\
+        BEGIN:VEVENT\r\nUID:c\r\nDTSTART:20261127T223000Z\r\nSUMMARY:{}\r\nEND:VEVENT\r\n\
+        BEGIN:VEVENT\r\nUID:d\r\nDTSTART:20261130T170000Z\r\nSUMMARY:{}\r\nEND:VEVENT\r\nEND:VCALENDAR",
+        say("Daily do time", "Team stand-up"), say("Lançamento da Cimori", "Cimori launch"),
+        say("Jantar com a família", "Family dinner"), say("Revisão do projeto", "Project review"));
+    state.agenda = isle_core::agenda::expand(&isle_core::agenda::parse_ics(&ics, UTC_OFFSET), state.today - 40, state.today + 400);
+    state.agenda.extend(isle_core::agenda::parse_holidays(&format!(r#"[{{"date":"2026-12-25","localName":"{}"}}]"#, say("Natal", "Christmas"))));
     state.agenda.sort_by_key(|i| (i.day, i.minute.map_or(-1, |m| m as i64)));
     state.weather = isle_core::weather::Weather::from_open_meteo("São Paulo", include_str!("open-meteo-sample.json")).ok();
     state.timers = isle_core::timers::TimersView {
@@ -326,9 +337,9 @@ fn run() {
     let window = |label: &str, percent: f64, hours: i64| isle_core::state::UsageWindow { label: label.into(), percent, resets_at_ms: NOW_MS + hours * 3_600_000 };
     state.usage = vec![
         isle_core::state::UsageProvider { id: "claude".into(), name: "Claude".into(), plan: "Pro".into(), updated_ms: NOW_MS - 120_000,
-            windows: vec![window("5 horas", 42.0, 3), window("Semana", 61.0, 70)], ..Default::default() },
+            windows: vec![window("usage.five_hours", 42.0, 3), window("usage.week", 61.0, 70)], ..Default::default() },
         isle_core::state::UsageProvider { id: "codex".into(), name: "Codex".into(), plan: "Plus".into(), updated_ms: NOW_MS - 300_000,
-            windows: vec![window("5 horas", 18.0, 4), window("Semana", 35.0, 110)], ..Default::default() },
+            windows: vec![window("usage.five_hours", 18.0, 4), window("usage.week", 35.0, 110)], ..Default::default() },
     ];
     let mut reel = Reel {
         t: 0., geom: PillGeometry::default(), state, cfg, renderer: PillRenderer::with_scale(CANVAS_W, CANVAS_H, 1.0),
@@ -412,7 +423,7 @@ fn run() {
             reel.move_to(x - 140., y + 3., 0.6);
             reel.click();
         }
-        let ask = "Instala o Node para mim";
+        let ask = say("Instala o Node para mim", "Install Node for me");
         for i in 1..=ask.chars().count() {
             reel.state.chat.input.text = ask.chars().take(i).collect();
             reel.state.chat.caret = Some(true);
@@ -429,14 +440,15 @@ fn run() {
         reel.state.chat.busy = true;
         reel.state.chat.items.push(isle_core::chat::Message { user: false, text: String::new() });
         reel.hold(0.6);
-        let answer = "✓ Ver o que está instalado\nO Node não está instalado. Vou instalar o nvm-windows pelo winget, e com ele a versão LTS do Node.";
+        let answer = say("✓ Ver o que está instalado\nO Node não está instalado. Vou instalar o nvm-windows pelo winget, e com ele a versão LTS do Node.",
+            "✓ Check what's installed\nNode isn't installed. I'll install nvm-windows with winget, and the LTS version of Node with it.");
         for i in (0..=answer.chars().count()).step_by(3) {
             reel.state.chat.items.last_mut().unwrap().text = answer.chars().take(i).collect();
             reel.draw();
         }
         reel.state.chat.items.last_mut().unwrap().text = answer.into();
         reel.state.chat.approval = Some(isle_core::chat::Approval {
-            title: "Instalar o nvm-windows".into(),
+            title: say("Instalar o nvm-windows", "Install nvm-windows").into(),
             command: "winget install -e --id CoreyButler.NVMforWindows".into(),
         });
         reel.hold(1.4);
@@ -446,7 +458,8 @@ fn run() {
         }
         reel.state.chat.approval = None;
         reel.hold(0.8);
-        let done = "\n✓ Instalar o nvm-windows\nPronto: o nvm-windows está instalado. Abra um terminal novo e rode nvm install lts.";
+        let done = say("\n✓ Instalar o nvm-windows\nPronto: o nvm-windows está instalado. Abra um terminal novo e rode nvm install lts.",
+            "\n✓ Install nvm-windows\nDone: nvm-windows is installed. Open a new terminal and run nvm install lts.");
         let base = reel.state.chat.items.last().unwrap().text.clone();
         for i in (0..=done.chars().count()).step_by(3) {
             reel.state.chat.items.last_mut().unwrap().text = format!("{base}{}", done.chars().take(i).collect::<String>());
@@ -481,7 +494,7 @@ fn run() {
     reel.state.pending_permission = None;
     reel.set_mode(PillMode::CompactBar);
     reel.hold(1.6);
-    reel.set_mode(PillMode::AlertBanner { title: "Claude Code concluiu · cimori".into(), subtitle: "Os 412 testes passaram.".into() });
+    reel.set_mode(PillMode::AlertBanner { title: format!("{} · cimori", isle_core::i18n::trf("agent.done", &[("name", &"Claude Code")])), subtitle: say("Os 412 testes passaram.", "All 412 tests passed.").into() });
     reel.hold(2.6);
     reel.set_mode(PillMode::CompactBar);
     reel.hold(0.8);
@@ -491,12 +504,12 @@ fn run() {
     reel.chapter("notifications");
     reel.move_to(1300., 700., 0.6);
     let note = isle_core::notifications::Notification {
-        id: 1, app_id: "Mensagens".into(), app_name: "Mensagens".into(), title: "Ana".into(),
-        body: "Chego em 10 minutos, pode descer!".into(), arrival_ms: reel.now_ms(), unread: true, ..Default::default()
+        id: 1, app_id: say("Mensagens", "Messages").into(), app_name: say("Mensagens", "Messages").into(), title: "Ana".into(),
+        body: say("Chego em 10 minutos, pode descer!", "Be there in 10 minutes, come on down!").into(), arrival_ms: reel.now_ms(), unread: true, ..Default::default()
     };
     reel.state.notifications.receive(vec![note.clone()], false);
     reel.state.notification_banner = Some(note);
-    reel.set_mode(PillMode::AlertBanner { title: "Mensagens · Ana".into(), subtitle: "Chego em 10 minutos, pode descer!".into() });
+    reel.set_mode(PillMode::AlertBanner { title: format!("{} · Ana", say("Mensagens", "Messages")), subtitle: say("Chego em 10 minutos, pode descer!", "Be there in 10 minutes, come on down!").into() });
     reel.hold(3.0);
     reel.state.notification_banner = None;
     reel.set_mode(PillMode::CompactBar);
@@ -518,7 +531,7 @@ fn settings_tour(dir: &std::path::Path, cfg: &IsleConfig, state: &IslandState) {
     let place = |d: &str, left| isle_render::window::MonitorPlace { device: d.into(), left, top: 0, width: 1920, scale: 1.0, primary: left == 0 };
     for (i, tab) in [T::General, T::Look, T::Bar, T::Ai, T::Monitors, T::Hiding, T::Media, T::Updates].into_iter().enumerate() {
         let mut view = isle_render::settings::SettingsView { tab, ..Default::default() };
-        view.info.extend([("info.version", "Versão 1.0.4".into()), ("info.hooks", "Instalados".into()), ("info.bridge", "Ligada".into())]);
+        view.info.extend([("info.version", isle_core::i18n::trf("settings.version", &[("version", &"1.0.4")])), ("info.hooks", isle_core::i18n::tr("settings.hooks_installed").into()), ("info.bridge", isle_core::i18n::tr("settings.bridge_on").into())]);
         view.monitors = vec![place(r"\\.\DISPLAY1", 0), place(r"\\.\DISPLAY2", 1920)];
         let mut renderer = PillRenderer::with_scale(1180, 760, 1.0);
         let fb = renderer.render_settings(&view, cfg, state);

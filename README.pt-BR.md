@@ -30,6 +30,9 @@ escolher, direto da ilha.
 Nasceu da união de dois projetos livres, o [isle](https://github.com/zickrian/isle) de zickrian e o
 [Mac Island & Dock](https://windhawk.net/mods/mac-island-dock) de caliberda.
 
+> A interface fala português do Brasil e inglês, seguindo o Windows (Configurações → Geral →
+> Idioma). Quer no seu idioma? Veja [Adicionar um idioma](locales/README.md).
+
 ## Sumário
 
 - [O que ela faz](#o-que-ela-faz)
@@ -192,6 +195,10 @@ cargo test --workspace
 .\scripts\release.ps1          # dist\: zip portátil e, com o Inno Setup 6, o instalador
 .\scripts\readme-media.ps1     # docs\media\: o vídeo e as animações deste README (precisa do ffmpeg)
 ```
+
+**Idiomas.** Todos os textos ficam em [`locales/`](locales/), um arquivo por idioma; um teste confere
+que todos têm as mesmas chaves. [Adicionar um idioma](locales/README.md) é um arquivo e uma linha de
+código. `.\scripts\readme-media.ps1 -Lang en-US` desenha o vídeo e as animações em inglês.
 
 **Publicar uma versão.** Depois que a CI passa na `main`, o GitHub Actions publica o instalador
 Windows x64, o ZIP portátil e o `SHA256SUMS.txt`. A versão avança um patch a partir da maior tag

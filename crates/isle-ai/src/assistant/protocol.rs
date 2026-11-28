@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Adapted from zickrian/isle @ a29a7c4 assistant/{claude,codex,opencode}.rs.
 // Copyright (C) 2026 zickrian. Text-only stream adapters, without the voice/action schema.
+use isle_core::i18n::{tr};
 use anyhow::{Result, bail};
 use isle_core::state::AiProviderKind;
 use serde_json::{Value, json};
@@ -76,7 +77,7 @@ impl Stream {
         }
         anyhow::ensure!(
             self.text.len() <= isle_core::chat::ANSWER_LIMIT,
-            "Resposta atingiu o limite de 32 KiB"
+            "{}", tr("assistant.answer_too_long")
         );
         Ok(old != self.text)
     }
@@ -92,7 +93,7 @@ pub fn reason(event: &Value) -> &str {
     ]
     .into_iter()
     .find_map(Value::as_str)
-    .unwrap_or("O assistente parou sem resposta")
+    .unwrap_or(tr("assistant.stopped"))
 }
 pub fn claude_request(prompt: &str) -> Value {
     json!({"type":"user","message":{"role":"user","content":prompt}})

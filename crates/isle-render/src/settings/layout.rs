@@ -4,6 +4,7 @@
 use super::{SettingsAction, SettingsView};
 use crate::text::{Text, Weight};
 use isle_core::config::IsleConfig;
+use isle_core::i18n::{tr, trf};
 use isle_core::prefs::{self, Pref, PrefKind, PrefValue, SettingsTab};
 
 pub const NAV_W: f32 = 236.0;
@@ -111,7 +112,7 @@ pub fn chip_items(pref: &str, cfg: &IsleConfig, view: &SettingsView) -> Vec<(Str
     let Some(p) = prefs::by_id(pref) else { return vec![] };
     let PrefValue::List(current) = (p.get)(cfg) else { return vec![] };
     let mut choices: Vec<(String, String)> =
-        prefs::chip_choices(pref).iter().map(|(k, l)| (k.to_string(), l.to_string())).collect();
+        prefs::chip_choices(pref).iter().map(|(k, l)| (k.to_string(), tr(l).to_string())).collect();
     choices.extend(view.dynamic(pref).iter().cloned());
     for key in &current {
         if !choices.iter().any(|(k, _)| k == key) {
@@ -171,10 +172,10 @@ const DESC_LINES: usize = 5;
 
 /// The text under a row's name: its description and, when it waits for a restart, that note.
 fn desc_text(p: &Pref) -> String {
-    match (p.desc.is_empty(), p.restart) {
-        (true, true) => isle_core::prefs::RESTART_NOTE.to_string(),
-        (false, true) => format!("{} · {}", p.desc, isle_core::prefs::RESTART_NOTE),
-        (false, false) => p.desc.to_string(),
+    match (p.desc().is_empty(), p.restart) {
+        (true, true) => isle_core::prefs::restart_note().to_string(),
+        (false, true) => format!("{} · {}", p.desc(), isle_core::prefs::restart_note()),
+        (false, false) => p.desc().to_string(),
         (true, false) => String::new(),
     }
 }
@@ -211,7 +212,7 @@ fn row_height(p: &'static Pref, w: f32, cfg: &IsleConfig, view: &SettingsView, t
     let lines = desc_lines(&probe, text, view).len();
     let head = if lines == 0 { ROW } else { ROW + DESC * lines as f32 };
     let below = match p.kind {
-        PrefKind::Choice(options) if listed(p.id) => options.len() as f32*34.+6.,
+        PrefKind::Choice(_) if listed(p.id) => p.choices().len() as f32*34.+6.,
         PrefKind::Chips => {
             let items = chip_items(p.id, cfg, view);
             let lines = flow(text, &items, w, closable(p.id)).iter().map(|f| f.1).max().map_or(0, |l| l + 1);
@@ -219,7 +220,7 @@ fn row_height(p: &'static Pref, w: f32, cfg: &IsleConfig, view: &SettingsView, t
         }
         PrefKind::Monitors if p.id == "monitors" || p.id == "main_monitor" => MAP_H + 8.0,
         PrefKind::CitySearch => 38.0 + view.city_results.len() as f32 * RESULT_H,
-        PrefKind::Choice(options) if choice_width(text, options) > w * 0.6 => 36.0,
+        PrefKind::Choice(_) if choice_width(text, &p.choices()) > w * 0.6 => 36.0,
         _ => 0.0,
     };
     (head + below, head)
@@ -315,11 +316,11 @@ pub fn layout(view: &SettingsView, cfg: &IsleConfig, text: &Text, w: f32, h: f32
     let mut groups: Vec<(String, Vec<&'static Pref>)> = Vec::new();
     for p in found {
         let title = if searching {
-            format!("{} · {}", p.tab.title(), p.card)
+            format!("{} · {}", p.tab.title(), p.card_title())
         } else if welcome {
-            format!("Passo {} de {} · {}", step + 1, prefs::WELCOME.len(), prefs::WELCOME[step].0)
+            trf("settings.step", &[("n", &(step + 1)), ("total", &prefs::WELCOME.len()), ("title", &tr(prefs::WELCOME[step].0))])
         } else {
-            p.card.to_string()
+            p.card_title().to_string()
         };
         match groups.iter_mut().find(|g| g.0 == title) {
             Some(g) => g.1.push(p),
@@ -385,8 +386,8 @@ pub fn control_rect(row: &RowBox, text: &Text) -> (f32, f32, f32, f32) {
     let mid = row.y + row.head / 2.0;
     match row.pref.kind {
         PrefKind::Switch => (row.x + row.w - SWITCH.0, mid - SWITCH.1 / 2.0, SWITCH.0, SWITCH.1),
-        PrefKind::Choice(options) => {
-            let cw = choice_width(text, options);
+        PrefKind::Choice(_) => {
+            let cw = choice_width(text, &row.pref.choices());
             if cw > row.w * 0.6 {
                 (row.x, row.y + row.head, cw.min(row.w), 30.0)
             } else {
@@ -427,32 +428,32 @@ pub const SHORTCUT_W: f32 = 200.0;
 pub fn action_label(p: &Pref) -> &'static str {
     use isle_core::prefs::ActionId::*;
     match p.kind {
-        PrefKind::Action(a) => match a {
-            OpenFolder => "Abrir pasta",
-            Quit => "Sair",
-            InstallHooks => "Instalar hooks",
-            RemoveHooks => "Remover",
-            Export => "Exportar",
-            Import => "Importar",
-            Restore => "Restaurar",
-            PickIconFolder => "Escolher pasta",
-            DeleteIconPack => "Excluir",
-            ReloadIcons => "Recarregar",
-            OpenWindowsBanners => "Abrir notificações",
-            OpenBridgeReadme => "Ver instruções",
-            OpenLink(url) if url == isle_core::prefs::ISSUES => "Reportar",
-            OpenLink(url) if url == isle_core::prefs::REPO => "Abrir no GitHub",
-            OpenLink(url) if url == isle_core::prefs::LICENSE => "Ler a licença",
-            OpenLink(_) => "Abrir site",
-            CheckUpdates => "Verificar",
-            DownloadUpdate => "Abrir",
-            InstallUpdate => "Atualizar",
-            WelcomeBack => "Voltar",
-            WelcomeNext => "Próximo",
-            WelcomeFinish => "Concluir",
-            ShowWelcome => "Mostrar",
-            CopyBridge => "Copiar código da ponte",
-        },
+        PrefKind::Action(a) => tr(match a {
+            OpenFolder => "button.open_folder",
+            Quit => "button.quit",
+            InstallHooks => "button.install_hooks",
+            RemoveHooks => "button.remove",
+            Export => "button.export",
+            Import => "button.import",
+            Restore => "button.restore",
+            PickIconFolder => "button.pick_folder",
+            DeleteIconPack => "button.delete",
+            ReloadIcons => "button.reload",
+            OpenWindowsBanners => "button.open_notifications",
+            OpenBridgeReadme => "button.see_instructions",
+            OpenLink(url) if url == isle_core::prefs::ISSUES => "button.report",
+            OpenLink(url) if url == isle_core::prefs::REPO => "button.open_github",
+            OpenLink(url) if url == isle_core::prefs::LICENSE => "button.read_license",
+            OpenLink(_) => "button.open_site",
+            CheckUpdates => "button.check",
+            DownloadUpdate => "button.open",
+            InstallUpdate => "button.update",
+            WelcomeBack => "button.back",
+            WelcomeNext => "button.next",
+            WelcomeFinish => "button.finish",
+            ShowWelcome => "button.show",
+            CopyBridge => "button.copy_bridge",
+        }),
         _ => "",
     }
 }
@@ -474,13 +475,13 @@ fn row_hits(hits: &mut Vec<Hit>, row: &RowBox, cfg: &IsleConfig, view: &Settings
     let id = row.pref.id;
     let (cx, cy, cw, ch) = control_rect(row, text);
     match row.pref.kind {
-        PrefKind::Choice(options) if listed(id) => {
-            for i in 0..options.len() { push(hits, Hit {x:cx,y:cy+i as f32*34.,w:cw,h:32.,action:SettingsAction::Choose(id,i)},top,bottom); }
+        PrefKind::Choice(_) if listed(id) => {
+            for i in 0..row.pref.choices().len() { push(hits, Hit {x:cx,y:cy+i as f32*34.,w:cw,h:32.,action:SettingsAction::Choose(id,i)},top,bottom); }
         }
         PrefKind::Switch => push(hits, Hit { x: row.x, y: row.y, w: row.w, h: row.head, action: SettingsAction::Toggle(id) }, top, bottom),
-        PrefKind::Choice(options) => {
+        PrefKind::Choice(_) => {
             let mut x = cx + 3.0;
-            for (i, o) in options.iter().enumerate() {
+            for (i, o) in row.pref.choices().iter().enumerate() {
                 let ow = text.width(o, 12.0, Weight::Medium) + 20.0;
                 push(hits, Hit { x, y: cy + 3.0, w: ow, h: ch - 6.0, action: SettingsAction::Choose(id, i) }, top, bottom);
                 x += ow;

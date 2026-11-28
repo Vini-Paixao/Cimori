@@ -926,7 +926,7 @@ mod win {
             let hwnd = HWND(island.hwnd as *mut _);
             unsafe {
                 let previous = GetForegroundWindow();
-                anyhow::ensure!(previous == hwnd || SetForegroundWindow(hwnd).as_bool(), "Windows recusou dar o teclado à ilha");
+                anyhow::ensure!(previous == hwnd || SetForegroundWindow(hwnd).as_bool(), "{}", isle_core::i18n::tr("errors.keyboard"));
                 let _ = windows::Win32::UI::Input::KeyboardAndMouse::SetFocus(hwnd);
                 if self.keyboard_foreground.is_none_or(|(w, _)| w != island.hwnd) {
                     self.keyboard_foreground = Some((island.hwnd, previous.0 as isize));

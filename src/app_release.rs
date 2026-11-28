@@ -1,4 +1,5 @@
 // The public release's chores: the update check (port of isle's isle-daemon/src/updates.rs).
+use isle_core::i18n::{tr, trf};
 use super::*;
 use isle_core::updates;
 
@@ -49,16 +50,16 @@ async fn latest() -> Checked {
 /// its release's SHA256SUMS.txt.
 async fn fetch_installer(latest: updates::Latest) -> Result<std::path::PathBuf, String> {
     use isle_platform_win::weather::{download, fetch_url_text};
-    let (name, url) = latest.installer.ok_or("Esta versão não tem instalador")?;
-    let sums_url = latest.sums.ok_or("Esta versão não tem SHA256SUMS.txt")?;
-    let sums = fetch_url_text(&sums_url).await.map_err(|err| format!("Não deu para baixar os hashes: {err}"))?;
-    let expected = updates::expected_sha256(&sums, &name).ok_or("O instalador não está nos hashes da versão")?;
-    let bytes = download(&url, AGENT).await.map_err(|err| format!("Não deu para baixar: {err}"))?;
+    let (name, url) = latest.installer.ok_or(tr("update.no_installer"))?;
+    let sums_url = latest.sums.ok_or(tr("update.no_sums"))?;
+    let sums = fetch_url_text(&sums_url).await.map_err(|err| trf("update.sums_failed", &[("err", &err)]))?;
+    let expected = updates::expected_sha256(&sums, &name).ok_or(tr("update.not_in_sums"))?;
+    let bytes = download(&url, AGENT).await.map_err(|err| trf("update.download_failed", &[("err", &err)]))?;
     if isle_platform_win::files::sha256_hex(&bytes).as_deref() != Some(expected.as_str()) {
-        return Err("O instalador baixado não confere com o hash da versão; nada foi instalado".into());
+        return Err(tr("update.hash_mismatch").into());
     }
     let path = std::env::temp_dir().join(&name);
-    std::fs::write(&path, bytes).map_err(|err| format!("Não deu para salvar o instalador: {err}"))?;
+    std::fs::write(&path, bytes).map_err(|err| trf("update.save_failed", &[("err", &err)]))?;
     Ok(path)
 }
 
@@ -86,7 +87,7 @@ impl IsleApp {
     /// "Buscar atualizações": one look, whatever the option; the answer shows here, not on the island.
     pub(super) fn check_updates_now(&mut self) {
         let Some(Services { rt, tx, waker }) = self.services.clone() else { return };
-        self.release.status = "Buscando…".into();
+        self.release.status = tr("settings.searching").into();
         rt.spawn(async move { send(&tx, &waker, AppEvent::Update { checked: latest().await, manual: true }) });
     }
 
@@ -98,12 +99,12 @@ impl IsleApp {
             Checked::Found(latest) if updates::is_newer(&latest.version, current) => {
                 let version = latest.version.clone();
                 if !self.release.installing {
-                    self.release.status = format!("Cimori {version} disponível (você tem a {current})");
+                    self.release.status = trf("update.available_have", &[("version", &version), ("current", &current)]);
                 }
                 if !manual && self.release.told.as_deref() != Some(version.as_str()) {
                     self.alerts.push_back((
-                        format!("Cimori {version} disponível"),
-                        "Toque para atualizar".into(),
+                        trf("update.available", &[("version", &version)]),
+                        tr("update.tap").into(),
                         Some(Opens::Settings(isle_core::prefs::SettingsTab::Updates)),
                     ));
                     self.release.told = Some(version);
@@ -111,10 +112,10 @@ impl IsleApp {
                 self.release.newer = Some(latest);
             }
             Checked::Found(_) | Checked::NothingPublished => {
-                self.release.status = format!("Você tem a versão mais nova ({current})");
+                self.release.status = trf("update.latest", &[("current", &current)]);
                 self.release.newer = None;
             }
-            Checked::Failed => self.release.status = "Não deu para verificar agora; veja a internet".into(),
+            Checked::Failed => self.release.status = tr("update.check_failed").into(),
         }
         self.settings_changed();
     }
@@ -127,7 +128,7 @@ impl IsleApp {
         }
         let Some(Services { rt, tx, waker }) = self.services.clone() else { return };
         self.release.installing = true;
-        self.release.status = format!("Baixando a Cimori {}…", latest.version);
+        self.release.status = trf("update.downloading", &[("version", &latest.version)]);
         self.settings_changed();
         rt.spawn(async move { send(&tx, &waker, AppEvent::Installer(fetch_installer(latest).await)) });
     }
@@ -139,13 +140,13 @@ impl IsleApp {
         match result {
             Ok(path) => {
                 tracing::info!("atualizações: instalando {}", path.display());
-                self.release.status = "Instalando; a Cimori vai fechar e abrir de novo".into();
+                self.release.status = tr("update.installing").into();
                 self.save_config();
                 if !cfg!(test) {
                     let started = std::process::Command::new(&path).args(["/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]).spawn();
                     if let Err(err) = started {
                         tracing::warn!("atualizações: o instalador não abriu: {err}");
-                        self.release.status = format!("O instalador não abriu: {err}");
+                        self.release.status = trf("update.installer_failed", &[("err", &err)]);
                     }
                 }
             }
@@ -198,7 +199,7 @@ impl IsleApp {
             #[cfg(not(windows))]
             false
         };
-        self.settings.view.status = Some(if copied { "Código da ponte copiado: cole no Windhawk" } else { "Não deu para copiar o código" }.into());
+        self.settings.view.status = Some(tr(if copied { "settings.bridge_copied" } else { "settings.bridge_copy_failed" }).into());
         self.settings.dirty = true;
     }
 

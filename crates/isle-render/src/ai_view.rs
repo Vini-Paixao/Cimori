@@ -1,17 +1,19 @@
 use super::*;
 use isle_core::chat::provider_name;
+use isle_core::i18n::{tr, tr_or, trf};
 /// Port of the usage page's `resets` (isle): "renova em 3h 34m".
 fn usage_resets(ms: i64, now_ms: i64) -> String {
     let minutes = ((ms - now_ms) as f64 / 60000.).round().max(0.) as i64;
     let (d, h, m) = (minutes / 1440, minutes % 1440 / 60, minutes % 60);
-    match (minutes, d, h, m) {
-        (0, ..) => "renova logo".into(),
-        (_, 1.., 0, _) => format!("renova em {d}d"),
-        (_, 1.., ..) => format!("renova em {d}d {h}h"),
-        (_, 0, 1.., 0) => format!("renova em {h}h"),
-        (_, 0, 1.., _) => format!("renova em {h}h {m}m"),
-        _ => format!("renova em {m}m"),
-    }
+    let key = match (minutes, d, h, m) {
+        (0, ..) => "usage.renews_soon",
+        (_, 1.., 0, _) => "usage.renews_d",
+        (_, 1.., ..) => "usage.renews_dh",
+        (_, 0, 1.., 0) => "usage.renews_h",
+        (_, 0, 1.., _) => "usage.renews_hm",
+        _ => "usage.renews_m",
+    };
+    trf(key, &[("d", &d), ("h", &h), ("m", &m)])
 }
 
 /// Port of the usage page's `updated` (isle): "Atualizado 16:54", "Do Codex, 16:54" for numbers from Codex's
@@ -25,8 +27,8 @@ fn usage_updated(ms: i64, from_codex: bool, s: &IslandState) -> String {
     let (h, m) = (secs / 3600, secs % 3600 / 60);
     // The island's own 12/24-hour setting, as its clock shows it.
     let time = if s.clock_text.ends_with('M') { format!("{}:{m:02} {}", (h + 11) % 12 + 1, if h < 12 { "AM" } else { "PM" }) } else { format!("{h:02}:{m:02}") };
-    let when = if day == s.today { time } else { format!("{} {time}", isle_core::clock::WEEKDAYS[day.rem_euclid(7) as usize]) };
-    if from_codex { format!("Do Codex, {when}") } else { format!("Atualizado {when}") }
+    let when = if day == s.today { time } else { format!("{} {time}", isle_core::clock::weekday_short(day)) };
+    trf(if from_codex { "usage.from_codex_at" } else { "usage.updated_at" }, &[("when", &when)])
 }
 
 impl PillRenderer {
@@ -37,7 +39,7 @@ impl PillRenderer {
         let fallback = [("claude", "Claude", state.claude_quota.used_pct), ("codex", "Codex", state.codex_quota.used_pct)]
             .map(|(id, name, pct)| isle_core::state::UsageProvider {
                 id: id.into(), name: name.into(),
-                windows: vec![isle_core::state::UsageWindow { label: "Plano".into(), percent: pct as f64, resets_at_ms: 0 }],
+                windows: vec![isle_core::state::UsageWindow { label: "usage.plan".into(), percent: pct as f64, resets_at_ms: 0 }],
                 ..Default::default()
             });
         let providers = if state.usage.is_empty() { &fallback[..] } else { &state.usage[..] };
@@ -55,15 +57,15 @@ impl PillRenderer {
                 self.centered_label(&p.plan, hx + pw / 2., centered_top(ty + 2., 17., 11.), 11., Weight::Semibold, Color::from_rgba8(255, 255, 255, 179));
                 hx += pw + 8.;
             }
-            let from_codex = p.note == "Do último uso do Codex";
+            let from_codex = p.note == isle_core::state::FROM_CODEX;
             let warning = !p.note.is_empty() && !from_codex;
-            let stamp = if warning { p.note.clone() } else { usage_updated(p.updated_ms, from_codex, state) };
+            let stamp = if warning { tr_or(&p.note).to_owned() } else { usage_updated(p.updated_ms, from_codex, state) };
             let stamp = self.text.ellipsize(&stamp, (right - hx).max(0.), 11., Weight::Regular);
             let sw = self.text.width(&stamp, 11., Weight::Regular);
             self.label(&stamp, right - sw, centered_top(ty, USAGE_HEAD, 11.), 11., Weight::Regular, Color::from_rgba8(255, 255, 255, if warning { 204 } else { 140 }));
             ty += USAGE_HEAD + 14.;
             if p.windows.is_empty() {
-                self.label("Nenhum limite informado ainda", left, ty, 12., Weight::Regular, Color::from_rgba8(255, 255, 255, 140));
+                self.label(tr("usage.no_limits"), left, ty, 12., Weight::Regular, Color::from_rgba8(255, 255, 255, 140));
                 ty += USAGE_LIMIT;
             }
             for limit in &p.windows {
@@ -81,7 +83,7 @@ impl PillRenderer {
                     self.label(&reset, right - pw - 10. - rw, ty + 2., 11., Weight::Regular, Color::from_rgba8(255, 255, 255, 140));
                     name_room -= rw + 10.;
                 }
-                self.clipped_label(&limit.label, left, ty, name_room.max(0.), 13., Weight::Semibold, Color::from_rgba8(255, 255, 255, 230));
+                self.clipped_label(&limit.text(), left, ty, name_room.max(0.), 13., Weight::Semibold, Color::from_rgba8(255, 255, 255, 230));
                 // A sliver shows even at 1%.
                 let (bar_y, bw) = (ty + 22., right - left);
                 self.round(left, bar_y, bw, 5., 2.5, Color::from_rgba8(255, 255, 255, 26));
@@ -134,7 +136,7 @@ impl PillRenderer {
                 UiAction::AiIdea(i) => {
                     // .isle-voice-idea: a pill, white 0.09 under 0.8 text.
                     self.round(hb.x, hb.y, hb.w, hb.h, hb.h / 2., Color::from_rgba8(255, 255, 255, 23));
-                    self.centered_label(crate::chat::IDEAS[i].0, hb.x + hb.w / 2., centered_top(hb.y, hb.h, 12.), 12., Weight::Semibold, Color::from_rgba8(255, 255, 255, 204));
+                    self.centered_label(tr(crate::chat::IDEAS[i].0), hb.x + hb.w / 2., centered_top(hb.y, hb.h, 12.), 12., Weight::Semibold, Color::from_rgba8(255, 255, 255, 204));
                 }
                 UiAction::AiScroll(n) => {
                     self.action_icon(&hb, if n > 0 { Icon::Up } else { Icon::Down }, false)
@@ -153,7 +155,7 @@ impl PillRenderer {
                     self.round(hb.x, hb.y, hb.w, hb.h, 12., surface());
                     let hint = c.input.text.is_empty();
                     let shown = if hint {
-                        "Pergunte qualquer coisa…".to_owned()
+                        tr("chat.placeholder").to_owned()
                     } else {
                         let mut t = c.input.text.as_str();
                         while self.text.width(t, 13., Weight::Regular) > hb.w - 30. && !t.is_empty()
@@ -189,7 +191,7 @@ impl PillRenderer {
             let avatar_size=if h<400.{48.}else{72.};
             self.avatar(x + w / 2. - avatar_size/2., top, avatar_size, mood);
             self.centered_label(
-                "O que vamos fazer hoje?",
+                tr("chat.empty_title"),
                 x + w / 2.,
                 top + avatar_size+16.,
                 23.,
@@ -197,7 +199,7 @@ impl PillRenderer {
                 white(),
             );
             self.centered_label(
-                "Uma ideia, uma pergunta, o próximo passo.",
+                tr("chat.empty_sub"),
                 x + w / 2.,
                 top + avatar_size+50.,
                 12.,
@@ -240,20 +242,20 @@ impl PillRenderer {
                     self.label(line, x + 44., top + 39. + i as f32 * crate::chat::APPROVAL_LINE, 12., Weight::Regular, accent_light(0.4));
                 },
                 None => {
-                    self.clipped_label("Comando longo demais ou com caracteres escondidos.", x + 44., top + 39., w - 88., 12., Weight::Regular, red());
-                    self.clipped_label("Negue e peça um comando menor.", x + 44., top + 39. + crate::chat::APPROVAL_LINE, w - 88., 12., Weight::Regular, muted());
+                    self.clipped_label(tr("chat.command_refused"), x + 44., top + 39., w - 88., 12., Weight::Regular, red());
+                    self.clipped_label(tr("chat.command_refused_hint"), x + 44., top + 39. + crate::chat::APPROVAL_LINE, w - 88., 12., Weight::Regular, muted());
                 }
             }
             for hb in crate::chat::hitboxes(x, y, w, h, c) {
                 match hb.action {
                     UiAction::AiDeny => {
                         self.round(hb.x, hb.y, hb.w, hb.h, hb.h / 2., Color::from_rgba8(255, 255, 255, 23));
-                        self.label("Negar", hb.x + 12., centered_top(hb.y, hb.h, 12.), 12., Weight::Semibold, white());
+                        self.label(tr("chat.deny"), hb.x + 12., centered_top(hb.y, hb.h, 12.), 12., Weight::Semibold, white());
                         self.label_right("esc", hb.x + hb.w - 11., centered_top(hb.y, hb.h, 10.), Weight::Regular, muted());
                     }
                     UiAction::AiRun => {
                         self.round(hb.x, hb.y, hb.w, hb.h, hb.h / 2., accent());
-                        self.label("Executar", hb.x + 12., centered_top(hb.y, hb.h, 12.), 12., Weight::Semibold, ink());
+                        self.label(tr("chat.run"), hb.x + 12., centered_top(hb.y, hb.h, 12.), 12., Weight::Semibold, ink());
                         self.label_right("↵", hb.x + hb.w - 11., centered_top(hb.y, hb.h, 12.), Weight::Semibold, ink());
                     }
                     _ => {}
@@ -269,9 +271,9 @@ impl PillRenderer {
         } else if waiting {
             ""
         } else if c.busy {
-            "Respondendo…"
+            tr("chat.answering")
         } else {
-            "Enter envia · Esc libera o teclado"
+            tr("chat.hint")
         };
         self.clipped_label(
             status,
@@ -285,7 +287,7 @@ impl PillRenderer {
         if c.busy {
             self.round(x + 20., y + h - 55., w - 86., 38., 12., surface());
             self.label(
-                if waiting { "Aguardando sua aprovação · Enter executa · Esc nega" } else { "Sua IA está trabalhando…" },
+                if waiting { tr("chat.hint_approval") } else { tr("chat.working") },
                 x + 33.,
                 y + h - 44.,
                 12.,

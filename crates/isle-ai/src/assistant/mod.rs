@@ -5,6 +5,7 @@ mod backends;
 mod process;
 mod protocol;
 
+use isle_core::i18n::{tr, trf};
 use isle_core::chat::{Approval, Message, ModelChoice};
 use isle_core::state::AiProviderKind;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -83,7 +84,7 @@ pub fn spawn(
                         let result = match listed {
                             Ok(Ok(models)) => Ok(models),
                             Ok(Err(err)) => Err(redact(format!("{err:#}"), key.as_deref())),
-                            Err(_) => Err("A CLI demorou para listar os modelos.".into()),
+                            Err(_) => Err(tr("assistant.models_slow").into()),
                         };
                         emit(Update { models: Some((provider, result)), ..Default::default() });
                     });
@@ -137,7 +138,7 @@ async fn converse(
         let raw = match answer {
             Ok(Ok(raw)) => raw,
             Ok(Err(err)) => return (latest, Some(format!("{err:#}"))),
-            Err(_) => return (latest, Some("O assistente demorou mais de 3 minutos. Tente novamente.".into())),
+            Err(_) => return (latest, Some(tr("assistant.timeout").into())),
         };
         let reply = agent::parse(&raw);
         talk.push(Message { user: false, text: raw });
@@ -146,7 +147,7 @@ async fn converse(
         };
         // Never offered when it cannot be shown whole and plainly (the card's and Enter's rule too).
         if !isle_core::chat::showable(&command.command) {
-            steps.push_str(&format!("✗ {} (recusado: longo demais ou com caracteres escondidos)\n", command.title));
+            steps.push_str(&format!("{}\n", trf("assistant.step_refused", &[("title", &command.title)])));
             talk.push(Message { user: true, text: agent::UNSHOWABLE.into() });
             continue;
         }
@@ -157,14 +158,14 @@ async fn converse(
         let approved = matches!(tokio::time::timeout(agent::APPROVAL, wait).await, Ok(Ok(true)));
         pending.lock().unwrap_or_else(PoisonError::into_inner).take();
         if !approved {
-            steps.push_str(&format!("✗ {} (negado)\n", command.title));
+            steps.push_str(&format!("{}\n", trf("assistant.step_denied", &[("title", &command.title)])));
             talk.push(Message { user: true, text: agent::DENIED.into() });
             continue;
         }
         emit(Update { generation, text: shown(&steps, &format!("⋯ {}", command.title)), ..Default::default() });
         let (code, output) = match agent::run(&command.command).await {
             Ok(done) => done,
-            Err(err) => (None, format!("Não foi possível rodar: {err:#}")),
+            Err(err) => (None, trf("assistant.run_failed", &[("err", &format!("{err:#}"))])),
         };
         steps.push_str(&format!("{} {}\n", if code == Some(0) { "✓" } else { "✗" }, command.title));
         talk.push(Message { user: true, text: agent::result_message(&command, code, &output) });

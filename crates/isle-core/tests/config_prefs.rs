@@ -89,8 +89,9 @@ fn the_island_opens_on_music_and_the_pref_names_every_tab_in_order() {
     let old: IsleConfig = serde_json::from_str(r#"{"ui":{"hover_open":true}}"#).unwrap();
     assert_eq!(old.ui.open_tab, TabPage::Media);
     let pref = by_id("ui.open_tab").unwrap();
-    let PrefKind::Choice(names) = pref.kind else { panic!() };
-    assert_eq!(names.to_vec(), TabPage::NAV.map(TabPage::label).to_vec());
+    assert!(matches!(pref.kind, PrefKind::Choice(_)));
+    let names = pref.choices();
+    assert_eq!(names, TabPage::NAV.map(TabPage::label).to_vec());
     let mut cfg = IsleConfig::default();
     (pref.set)(&mut cfg, PrefValue::Index(names.len() - 1));
     assert_eq!(cfg.ui.open_tab, TabPage::AiHub);

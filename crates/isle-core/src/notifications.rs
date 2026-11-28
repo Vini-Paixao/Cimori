@@ -132,7 +132,7 @@ pub const PER_PAGE: usize = 4;
 pub fn notification_age(arrival_ms: i64, now_ms: i64) -> String {
     let minutes = now_ms.saturating_sub(arrival_ms).max(0) / 60_000;
     match minutes {
-        0 => "agora".into(),
+        0 => crate::i18n::tr("time.now").into(),
         1..=59 => format!("{minutes} min"),
         60..=1439 => format!("{} h", minutes / 60),
         _ => format!("{} d", minutes / 1440),

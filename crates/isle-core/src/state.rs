@@ -39,21 +39,21 @@ impl TabPage {
     ];
     /// The name the open tab shows beside its icon.
     pub fn label(self) -> &'static str {
-        match self {
-            TabPage::AiHub => "Uso",
-            TabPage::ControlCenter => "Controle",
-            TabPage::CalendarWeather => "Agenda",
-            TabPage::Weather => "Clima",
-            TabPage::Media => "Música",
-            TabPage::Notifications => "Avisos",
-            TabPage::Shelf => "Prateleira",
-            TabPage::Clipboard => "Histórico",
-            TabPage::Usb => "USB",
-            TabPage::Downloads => "Downloads",
-            TabPage::Timer => "Foco",
-            TabPage::Tray => "Bandeja",
-            TabPage::Power => "Desligar",
-        }
+        crate::i18n::tr(match self {
+            TabPage::AiHub => "tab.ai",
+            TabPage::ControlCenter => "tab.control",
+            TabPage::CalendarWeather => "tab.agenda",
+            TabPage::Weather => "tab.weather",
+            TabPage::Media => "tab.media",
+            TabPage::Notifications => "tab.notifications",
+            TabPage::Shelf => "tab.shelf",
+            TabPage::Clipboard => "tab.clipboard",
+            TabPage::Usb => "tab.usb",
+            TabPage::Downloads => "tab.downloads",
+            TabPage::Timer => "tab.timer",
+            TabPage::Tray => "tab.tray",
+            TabPage::Power => "tab.power",
+        })
     }
 }
 
@@ -77,11 +77,12 @@ pub enum AiProviderKind {
 
 impl AiProviderKind {
     pub fn reset_ready_title(self) -> String {
-        match self {
-            AiProviderKind::ClaudeCode => "Claude de volta!".to_string(),
-            AiProviderKind::Codex => "Codex de volta!".to_string(),
-            AiProviderKind::OpenCodeGo => "OpenCode de volta!".to_string(),
-        }
+        let name = match self {
+            AiProviderKind::ClaudeCode => "Claude",
+            AiProviderKind::Codex => "Codex",
+            AiProviderKind::OpenCodeGo => "OpenCode",
+        };
+        crate::i18n::trf("usage.back", &[("name", &name)])
     }
 }
 
@@ -219,8 +220,21 @@ pub struct UsageProvider {
     pub plan: String,
     /// When the numbers were read; 0 when never.
     pub updated_ms: i64,
-    /// Why the numbers may be old or missing ("Abra o Claude Code para renovar o login"); empty when fresh.
+    /// Why the numbers may be old or missing, a key of locales/ (`FROM_CODEX`); empty when fresh.
     pub note: String,
+}
+
+/// `UsageProvider::note` when the numbers come from Codex's last use.
+pub const FROM_CODEX: &str = "usage.from_codex";
+
+impl UsageWindow {
+    /// The label as shown now: a key of locales/, then a model after " · " ("usage.week · Opus").
+    pub fn text(&self) -> String {
+        match self.label.split_once(" · ") {
+            Some((head, model)) => format!("{} · {model}", crate::i18n::tr_or(head)),
+            None => crate::i18n::tr_or(&self.label).to_owned(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -283,39 +297,9 @@ impl ControlTile {
         Self::WindowsSettings, Self::Power,
         Self::Hotspot, Self::Airplane, Self::DarkMode, Self::Screenshot, Self::Lock, Self::Calculator, Self::Emoji, Self::Clipboard, Self::ShowDesktop, Self::OnScreenKeyboard, Self::TouchKeyboard, Self::WinX, Self::Microphone, Self::Brightness, Self::Battery, Self::PowerMode, Self::Drives, Self::RecycleBin, Self::Timer, Self::Pomodoro, Self::Alarms, Self::Stopwatch, Self::Weather, Self::NextEvent,
     ];
+    /// `tile.<prefs::tile_key>` in locales/.
     pub fn label(self) -> &'static str {
-        match self {
-            Self::WindowsSettings => "Configurações", Self::Power => "Desligar",
-            Self::Hotspot => "Hotspot móvel",
-            Self::Airplane => "Modo avião",
-            Self::DarkMode => "Modo escuro",
-            Self::Screenshot => "Captura de tela",
-            Self::Lock => "Bloquear",
-            Self::Calculator => "Calculadora",
-            Self::Emoji => "Emojis",
-            Self::Clipboard => "Área de transferência",
-            Self::ShowDesktop => "Mostrar área de trabalho",
-            Self::OnScreenKeyboard => "Teclado virtual",
-            Self::TouchKeyboard => "Teclado touch",
-            Self::WinX => "Menu Win+X",
-            Self::Microphone => "Microfone",
-            Self::Brightness => "Brilho da tela",
-            Self::Battery => "Bateria",
-            Self::PowerMode => "Energia",
-            Self::Drives => "Pendrives",
-            Self::RecycleBin => "Lixeira",
-            Self::Timer => "Timer",
-            Self::Pomodoro => "Pomodoro",
-            Self::Alarms => "Alarmes",
-            Self::Stopwatch => "Cronômetro",
-            Self::Weather => "Clima",
-            Self::NextEvent => "Próximo evento",
-            Self::Wifi => "Wi-Fi", Self::Bluetooth => "Bluetooth",
-            Self::DoNotDisturb => "Não Perturbe", Self::NightLight => "Luz noturna",
-            Self::Project => "Projetar", Self::Cast => "Transmitir",
-            Self::Captions => "Legendas", Self::Accessibility => "Acessibilidade",
-            Self::TaskManager => "Gerenciador", Self::Explorer => "Explorador",
-        }
+        crate::i18n::lookup(&format!("tile.{}", crate::prefs::tile_key(self))).unwrap_or("")
     }
 }
 

@@ -325,7 +325,7 @@ mod usb {
             .position(|&unit| unit == 0)
             .unwrap_or(label.len());
         Some(if end == 0 {
-            "Unidade USB".into()
+            isle_core::i18n::tr("p8.usb_drive").into()
         } else {
             String::from_utf16_lossy(&label[..end])
         })
@@ -350,7 +350,7 @@ mod usb {
         let _errors = CriticalErrors::suppress();
         ensure!(
             drive_label(letter).is_some(),
-            "A unidade USB {letter}: não está disponível"
+            "{}", isle_core::i18n::trf("errors.usb_missing", &[("letter", &letter)])
         );
         let path = root_path(letter);
         let result = unsafe {
@@ -365,7 +365,7 @@ mod usb {
         };
         ensure!(
             result.0 as isize > 32,
-            "Não foi possível abrir a unidade USB {letter}:"
+            "{}", isle_core::i18n::trf("errors.usb_open", &[("letter", &letter)])
         );
         Ok(())
     }
@@ -603,27 +603,27 @@ mod usb {
         let _errors = CriticalErrors::suppress();
         ensure!(
             drive_label(letter).is_some(),
-            "A unidade USB {letter}: não está disponível"
+            "{}", isle_core::i18n::trf("errors.usb_missing", &[("letter", &letter)])
         );
         let volume = volume_path(letter);
         let volume = PCWSTR(volume.as_ptr());
         let wanted = disk_number(volume)
-            .ok_or_else(|| anyhow!("Não foi possível identificar o disco de {letter}:"))?;
+            .ok_or_else(|| anyhow!("{}", isle_core::i18n::trf("errors.usb_disk", &[("letter", &letter)])))?;
         let disk = find_disk(wanted)
-            .ok_or_else(|| anyhow!("O dispositivo da unidade {letter}: não foi localizado"))?;
+            .ok_or_else(|| anyhow!("{}", isle_core::i18n::trf("errors.usb_device", &[("letter", &letter)])))?;
         let root = root_path(letter);
         let fixed = unsafe { GetDriveTypeW(PCWSTR(root.as_ptr())) } == DRIVE_FIXED;
         let target = eject_target(disk, is_usb_bus(letter), fixed);
         ensure!(
             disk_number(volume) == Some(wanted),
-            "O dispositivo da unidade {letter}: mudou durante a ejeção"
+            "{}", isle_core::i18n::trf("errors.usb_changed", &[("letter", &letter)])
         );
         let Some(device) = target else {
             if fixed {
-                bail!("O Windows não disponibilizou a remoção segura para a unidade {letter}:");
+                bail!("{}", isle_core::i18n::trf("errors.usb_no_removal", &[("letter", &letter)]));
             }
             return eject_media(volume).map_err(|err| {
-                anyhow!("O Windows recusou a ejeção da mídia na unidade {letter}: ({err})")
+                anyhow!("{}", isle_core::i18n::trf("errors.usb_media_refused", &[("letter", &letter), ("err", &err)]))
             });
         };
         let mut veto = PNP_VetoTypeUnknown;
@@ -632,9 +632,8 @@ mod usb {
             unsafe { CM_Request_Device_EjectW(device, Some(&mut veto), Some(&mut veto_name), 0) };
         ensure!(
             result == CR_SUCCESS && veto == PNP_VetoTypeUnknown,
-            "O Windows recusou a ejeção da unidade {letter}: (código {}, motivo {})",
-            result.0,
-            veto.0
+            "{}",
+            isle_core::i18n::trf("errors.usb_refused", &[("letter", &letter), ("code", &result.0), ("veto", &veto.0)])
         );
         Ok(())
     }

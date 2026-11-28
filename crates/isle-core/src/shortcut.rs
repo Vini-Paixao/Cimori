@@ -21,7 +21,7 @@ pub fn key_name(vk: u8) -> String {
         b'A'..=b'Z' | b'0'..=b'9' => (vk as char).to_string(),
         0x70..=0x87 => format!("F{}", vk - 0x6F),
         0x60..=0x69 => format!("Num {}", vk - 0x60),
-        0x20 => "Espaço".into(),
+        0x20 => crate::i18n::tr("keys.space").into(),
         0x0D => "Enter".into(),
         0x08 => "Backspace".into(),
         0x09 => "Tab".into(),
@@ -47,14 +47,14 @@ pub fn key_name(vk: u8) -> String {
         0xDC => "\\".into(),
         0xDD => "]".into(),
         0xDE => "'".into(),
-        other => format!("Tecla {other:#04x}"),
+        other => crate::i18n::trf("keys.other", &[("code", &format!("{other:#04x}"))]),
     }
 }
 
 /// Port of ShortcutText (unspaced): "Win+J", "Ctrl+Alt+K"; "Nenhum" for none.
 pub fn text(code: u32) -> String {
     if code == 0 {
-        return "Nenhum".into();
+        return crate::i18n::tr("keys.none").into();
     }
     let mods = code >> 8;
     let mut out = String::new();

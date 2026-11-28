@@ -1,5 +1,6 @@
 //! Shared drawing and hit targets for the files and devices panels.
 
+use isle_core::i18n::{tr, trf};
 use super::*;
 use crate::layout::BODY;
 use crate::pages::HitBox;
@@ -75,13 +76,13 @@ pub fn controls(
     let bottom = h - 43.;
     match tab {
         TabPage::Clipboard => {
-            button(SearchClips, "Buscar", 20., BODY + 35., w - 155.);
+            button(SearchClips, tr("p8.search"), 20., BODY + 35., w - 155.);
             button(
                 FilterPinnedClips,
                 if view.clipboard_pins_only {
-                    "Só fixados"
+                    tr("p8.pinned_only")
                 } else {
-                    "Todos"
+                    tr("p8.all")
                 },
                 w - 124.,
                 BODY + 35.,
@@ -91,23 +92,23 @@ pub fn controls(
             for (offset, i) in rows.clone().enumerate() {
                 let row = &view.clipboard[i];
                 let y = top + offset as f32 * ROW_H + 6.;
-                button(CopyClip(row.id), if view.clipboard_paste { "Colar" } else { "Copiar" }, w - 209., y, 58.);
+                button(CopyClip(row.id), if view.clipboard_paste { tr("p8.paste") } else { tr("p8.copy") }, w - 209., y, 58.);
                 button(
                     PinClip(row.id),
-                    if row.pinned { "Soltar" } else { "Fixar" },
+                    if row.pinned { tr("p8.unpin") } else { tr("p8.pin") },
                     w - 146.,
                     y,
                     56.,
                 );
-                button(DeleteClip(row.id), "Excluir", w - 85., y, 64.);
+                button(DeleteClip(row.id), tr("p8.delete"), w - 85., y, 64.);
             }
             if view.clipboard_has_recent {
-                button(ClearClips, "Limpar recentes", 20., bottom, 117.);
+                button(ClearClips, tr("p8.clear_recent"), 20., bottom, 117.);
             }
             if rows.start > 0 {
                 button(
                     ClipboardPage(rows.start / ROWS_PER_PAGE - 1),
-                    "Anterior",
+                    tr("p8.previous"),
                     w - 165.,
                     bottom,
                     67.,
@@ -116,7 +117,7 @@ pub fn controls(
             if rows.end < view.clipboard.len() {
                 button(
                     ClipboardPage(rows.start / ROWS_PER_PAGE + 1),
-                    "Próxima",
+                    tr("p8.next"),
                     w - 90.,
                     bottom,
                     69.,
@@ -124,41 +125,41 @@ pub fn controls(
             }
         }
         TabPage::Shelf if view.share.is_some() => {
-            button(ShareStop, "Encerrar QR", 20., bottom, 104.);
+            button(ShareStop, tr("p8.stop_qr"), 20., bottom, 104.);
             if view
                 .share
                 .as_ref()
                 .is_some_and(|share| share.pending_code.is_some())
             {
-                button(ShareDeny, "Recusar", w - 171., bottom, 69.);
-                button(ShareApprove, "Permitir", w - 96., bottom, 75.);
+                button(ShareDeny, tr("p8.refuse"), w - 171., bottom, 69.);
+                button(ShareApprove, tr("p8.allow"), w - 96., bottom, 75.);
             }
         }
         TabPage::Shelf => {
             for i in 0..view.shelf.len().min(6) {
                 let y = top + i as f32 * 37. + 4.;
-                button(ShelfOpen(i), "Abrir", w - 203., y, 52.);
-                button(ShelfCopy(i), "Copiar", w - 146., y, 56.);
-                button(ShelfRemove(i), "Retirar", w - 85., y, 64.);
+                button(ShelfOpen(i), tr("p8.open"), w - 203., y, 52.);
+                button(ShelfCopy(i), tr("p8.copy"), w - 146., y, 56.);
+                button(ShelfRemove(i), tr("p8.take_out"), w - 85., y, 64.);
             }
             if view.shelf.len() < view.shelf_capacity {
-                button(ShelfPick, "Adicionar arquivo", 20., bottom, 130.);
+                button(ShelfPick, tr("p8.add_file"), 20., bottom, 130.);
             }
             if view.shelf_qr && (!view.shelf.is_empty() || view.shelf_receive) {
-                button(ShareStart, "Compartilhar por QR", w - 174., bottom, 153.);
+                button(ShareStart, tr("p8.share_qr"), w - 174., bottom, 153.);
             }
         }
         TabPage::Usb => {
             let rows = page_range(view.usb_page, view.usb.len());
             for (offset, i) in rows.clone().enumerate() {
                 let y = top + offset as f32 * ROW_H + 6.;
-                button(UsbOpen(i), "Abrir", w - 145., y, 56.);
-                button(UsbEject(i), "Ejetar", w - 84., y, 63.);
+                button(UsbOpen(i), tr("p8.open"), w - 145., y, 56.);
+                button(UsbEject(i), tr("p8.eject"), w - 84., y, 63.);
             }
             if rows.start > 0 {
                 button(
                     UsbPage(rows.start / ROWS_PER_PAGE - 1),
-                    "Anterior",
+                    tr("p8.previous"),
                     w - 165.,
                     bottom,
                     67.,
@@ -167,7 +168,7 @@ pub fn controls(
             if rows.end < view.usb.len() {
                 button(
                     UsbPage(rows.start / ROWS_PER_PAGE + 1),
-                    "Próxima",
+                    tr("p8.next"),
                     w - 90.,
                     bottom,
                     69.,
@@ -177,8 +178,8 @@ pub fn controls(
         TabPage::Downloads => {
             let (top, count) = recent_layout(h, view);
             // Inside its row, centered, 5 px from the row's top, bottom and right edge.
-            for i in 0..count { button(RecentShow(i), "Mostrar", w - 97., top + i as f32 * RECENT_H + 5., 72.); }
-            button(OpenDownloads, "Abrir pasta Downloads", 20., bottom, 166.)
+            for i in 0..count { button(RecentShow(i), tr("p8.show"), w - 97., top + i as f32 * RECENT_H + 5., 72.); }
+            button(OpenDownloads, tr("p8.open_downloads"), 20., bottom, 166.)
         }
         _ => {}
     }
@@ -201,15 +202,15 @@ impl PillRenderer {
     ) {
         let (title, empty) = match tab {
             TabPage::Clipboard => (
-                "Área de transferência",
-                "Copie texto, links, imagens ou arquivos para começar.",
+                tr("p8.clipboard_title"),
+                tr("p8.clipboard_empty"),
             ),
             TabPage::Shelf => (
-                "Prateleira",
-                "Arraste um arquivo para a ilha ou use Adicionar arquivo.",
+                tr("p8.shelf_title"),
+                tr("p8.shelf_empty"),
             ),
-            TabPage::Usb => ("Dispositivos USB", "Nenhuma unidade USB conectada."),
-            TabPage::Downloads => ("Downloads", "Nenhum download detectado agora."),
+            TabPage::Usb => (tr("p8.usb_title"), tr("p8.usb_empty")),
+            TabPage::Downloads => (tr("p8.downloads_title"), tr("p8.downloads_empty")),
             _ => return,
         };
         self.label(title, x + 20., y + BODY, 18., Weight::Semibold, white());
@@ -251,7 +252,7 @@ impl PillRenderer {
                 TabPage::Downloads => {
                     // The overall count and the taskbar's % (the Windhawk bridge) beside the title.
                     if let Some(progress) = view.downloads {
-                        let mut summary = format!("{} em andamento", progress.count);
+                        let mut summary = trf("p8.in_progress", &[("n", &progress.count)]);
                         if let Some(p) = progress.permille { summary.push_str(&format!(" · {}%", p / 10)); }
                         self.label_right(&summary, x + w - 20., y + BODY + 5., Weight::Medium, muted());
                     }
@@ -260,15 +261,15 @@ impl PillRenderer {
                     }
                     let active = !view.download_rows.is_empty() || view.downloads.is_some();
                     if view.download_rows.is_empty() && let Some(progress) = view.downloads {
-                        let detail = progress.permille.map_or_else(|| "Tamanho total ainda desconhecido".into(), |p| format!("{}% concluído", p / 10));
-                        self.download_card("Download em andamento", &detail, None, x, top, w, view, now_ms);
+                        let detail = progress.permille.map_or_else(|| tr("p8.size_unknown").into(), |p| trf("p8.percent_done", &[("p", &(p / 10))]));
+                        self.download_card(tr("p8.download_running"), &detail, None, x, top, w, view, now_ms);
                     }
                     let (recent_top, count) = recent_layout(h, view);
                     if !active && count > 0 {
-                        self.clipped_label("Nenhum download agora.", x + 20., top + 8., w - 40., 13., Weight::Regular, muted());
+                        self.clipped_label(tr("p8.no_download"), x + 20., top + 8., w - 40., 13., Weight::Regular, muted());
                     }
                     if count > 0 {
-                        self.label("Recentes", x + 20., y + recent_top - 20., 11., Weight::Semibold, muted());
+                        self.label(tr("p8.recent"), x + 20., y + recent_top - 20., 11., Weight::Semibold, muted());
                     }
                     for (i, file) in view.download_recent.iter().take(count).enumerate() {
                         let ry = y + recent_top + i as f32 * RECENT_H;
@@ -285,7 +286,7 @@ impl PillRenderer {
                 let empty = if tab == TabPage::Clipboard
                     && (!view.clipboard_query.is_empty() || view.clipboard_pins_only)
                 {
-                    "Nenhum item corresponde ao filtro."
+                    tr("p8.no_match")
                 } else {
                     empty
                 };
@@ -329,7 +330,7 @@ impl PillRenderer {
             );
             if search {
                 let query = if view.clipboard_query.is_empty() && !view.clipboard_searching {
-                    "Buscar no histórico".into()
+                    tr("p8.search_history").into()
                 } else {
                     format!(
                         "{}{}",
@@ -443,7 +444,7 @@ impl PillRenderer {
         let tx = x + side + 14.;
         let tw = w - side - 54.;
         self.clipped_label(
-            "Escaneie no celular",
+            tr("p8.scan"),
             tx,
             y + 12.,
             tw,
@@ -452,7 +453,7 @@ impl PillRenderer {
             white(),
         );
         self.clipped_label(
-            "Use a mesma rede Wi-Fi",
+            tr("p8.same_wifi"),
             tx,
             y + 37.,
             tw,
@@ -462,7 +463,7 @@ impl PillRenderer {
         );
         if let Some(code) = &share.pending_code {
             self.clipped_label(
-                "Confira o código do celular",
+                tr("p8.check_code"),
                 tx,
                 y + 82.,
                 tw,
@@ -480,9 +481,9 @@ fn unit(bytes: u64) -> (f64, &'static str) {
     match bytes { b if b >= 1_000_000_000 => (1e9, "GB"), b if b >= 1_000_000 => (1e6, "MB"), _ => (1e3, "KB") }
 }
 
-/// A number the Brazilian way: whole from 100 up, else one decimal after a comma.
+/// Whole from 100 up, else one decimal (after the language's `number.decimal`, "," in pt-BR).
 fn amount(value: f64) -> String {
-    if value >= 100. { format!("{value:.0}") } else { format!("{value:.1}").replace('.', ",") }
+    if value >= 100. { format!("{value:.0}") } else { format!("{value:.1}").replace('.', tr("number.decimal")) }
 }
 
 fn size_text(bytes: u64) -> String {
@@ -496,7 +497,8 @@ fn duration_text(secs: u64) -> String {
 
 /// "há 3 min" for a file modified `ms` ago.
 fn ago_text(ms: i64) -> String {
-    match ms.max(0) / 60_000 { 0 => "agora".into(), m if m < 60 => format!("há {m} min"), m if m < 1440 => format!("há {} h", m / 60), m => format!("há {} d", m / 1440) }
+    let ago = |n: i64, unit: &str| trf("p8.ago", &[("n", &n), ("unit", &unit)]);
+    match ms.max(0) / 60_000 { 0 => tr("p8.just_now").into(), m if m < 60 => ago(m, "min"), m if m < 1440 => ago(m / 60, "h"), m => ago(m / 1440, "d") }
 }
 
 // Port of the partial-file information shown by mac-island: only known measurements,
@@ -505,14 +507,14 @@ fn download_description(row: &isle_core::phase8::DownloadRowView) -> String {
     let mut text = match row.total.filter(|v| *v > 0) {
         Some(total) => {
             let (divisor, unit) = unit(total);
-            format!("{} de {} {unit}", amount(row.bytes.min(total) as f64 / divisor), amount(total as f64 / divisor))
+            trf("p8.of", &[("done", &amount(row.bytes.min(total) as f64 / divisor)), ("total", &amount(total as f64 / divisor)), ("unit", &unit)])
         }
         None => size_text(row.bytes),
     };
     if let Some(rate) = row.bytes_per_second.filter(|r| *r > 0) {
         let (divisor, unit) = unit(rate);
-        text.push_str(&format!(" · {}/s", format!("{:.1} {unit}", rate as f64 / divisor).replace('.', ",")));
-        if let Some(total) = row.total { text.push_str(&format!(" · {} restantes", duration_text(total.saturating_sub(row.bytes) / rate))); }
+        text.push_str(&format!(" · {}/s", format!("{:.1} {unit}", rate as f64 / divisor).replace('.', tr("number.decimal"))));
+        if let Some(total) = row.total { text.push_str(&format!(" · {}", trf("p8.left", &[("time", &duration_text(total.saturating_sub(row.bytes) / rate))]))); }
     }
     text
 }
@@ -529,7 +531,7 @@ fn recent_layout(h: f32, view: &Phase8View) -> (f32, usize) {
     (top, view.download_recent.len().min(fit).min(5))
 }
 
-/// Where a click opens recent download `i`: its row left of its "Mostrar" button.
+/// Where a click opens recent download `i`: its row left of its tr("p8.show") button.
 pub fn download_recent_rows(x: f32, y: f32, w: f32, h: f32, view: &Phase8View) -> impl Iterator<Item = HitBox> {
     let (top, count) = recent_layout(h, view);
     (0..count).map(move |i| HitBox {

@@ -1,4 +1,5 @@
 //! Native Cimori shell and shared view components. This is the real tiny-skia UI.
+use isle_core::i18n::{tr, trf};
 use super::*;
 use crate::layout::BODY as CONTENT;
 #[path = "ai_view.rs"]
@@ -29,53 +30,38 @@ impl PillRenderer {
         if !s.ui.tooltips { return; }
         let title = match hb.action {
             UiAction::SwitchTab(t) => t.label().to_owned(),
-            UiAction::AiOpen => "Assistente".into(),
-            UiAction::ToggleCollapse if cfg.ui.arrow_pins && cfg.auto_hide => if s.arrow_pinned { "Soltar ilha" } else { "Fixar ilha aberta" }.into(),
-            UiAction::ToggleCollapse => "Recolher".into(),
-            UiAction::OpenSettings => "Configurações".into(),
-            UiAction::ToggleMic => if s.mic_muted {
-                "Ativar microfone"
-            } else {
-                "Silenciar microfone"
-            }
-            .into(),
-            UiAction::ToggleMute => if s.muted {
-                "Ativar som"
-            } else {
-                "Silenciar som"
-            }
-            .into(),
-            UiAction::OpenMixer => "Mixer do Windows".into(),
-            UiAction::OpenPower => "Desligar".into(),
-            UiAction::ControlRemove(t) => format!("Tirar {}", t.label()),
-            UiAction::ControlAdd(t) => format!("Pôr {}", t.label()),
+            UiAction::AiOpen => tr("tip.assistant").into(),
+            UiAction::ToggleCollapse if cfg.ui.arrow_pins && cfg.auto_hide => tr(if s.arrow_pinned { "tip.unpin" } else { "tip.pin" }).into(),
+            UiAction::ToggleCollapse => tr("tip.collapse").into(),
+            UiAction::OpenSettings => tr("tip.settings").into(),
+            UiAction::ToggleMic => tr(if s.mic_muted { "tip.mic_on" } else { "tip.mic_off" }).into(),
+            UiAction::ToggleMute => tr(if s.muted { "tip.sound_on" } else { "tip.sound_off" }).into(),
+            UiAction::OpenMixer => tr("tip.mixer").into(),
+            UiAction::OpenPower => tr("tip.power").into(),
+            UiAction::ControlRemove(t) => trf("tip.remove_tile", &[("name", &t.label())]),
+            UiAction::ControlAdd(t) => trf("tip.add_tile", &[("name", &t.label())]),
             UiAction::Control(t) if hb.h < 50. => t.label().to_owned(),
-            UiAction::AiNew => "Nova conversa".into(),
-            UiAction::AiBack => "Voltar".into(),
-            UiAction::AiSend => "Enviar mensagem".into(),
-            UiAction::AiStop => "Parar resposta".into(),
-            UiAction::AiScroll(n) => if n > 0 {
-                "Histórico anterior"
-            } else {
-                "Mensagens recentes"
-            }
-            .into(),
-            UiAction::ClearNotifications => "Limpar todos os avisos".into(),
-            UiAction::SendReply => "Enviar resposta".into(),
-            UiAction::ReplyNotification(..) => "Responder".into(),
+            UiAction::AiNew => tr("tip.new_chat").into(),
+            UiAction::AiBack => tr("tip.back").into(),
+            UiAction::AiSend => tr("tip.send").into(),
+            UiAction::AiStop => tr("tip.stop").into(),
+            UiAction::AiScroll(n) => tr(if n > 0 { "tip.older" } else { "tip.newer" }).into(),
+            UiAction::ClearNotifications => tr("tip.clear_all").into(),
+            UiAction::SendReply => tr("tip.send_reply").into(),
+            UiAction::ReplyNotification(..) => tr("tip.reply").into(),
             UiAction::TrayClick(i, _) => s.tray[i].display_name.clone(),
-            UiAction::Timer(crate::pages::TimerAction::Reset) => "Reiniciar".into(),
-            UiAction::Media(k) => match k {
-                MediaKey::Previous => "Faixa anterior",
-                MediaKey::Next => "Próxima faixa",
+            UiAction::Timer(crate::pages::TimerAction::Reset) => tr("tip.reset").into(),
+            UiAction::Media(k) => tr(match k {
+                MediaKey::Previous => "tip.previous",
+                MediaKey::Next => "tip.next",
                 _ => {
                     if s.media.as_ref().is_some_and(|m| m.playing) {
-                        "Pausar"
+                        "tip.pause"
                     } else {
-                        "Reproduzir"
+                        "tip.play"
                     }
                 }
-            }
+            })
             .into(),
             _ => return,
         };

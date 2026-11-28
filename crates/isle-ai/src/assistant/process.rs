@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Adapted from zickrian/isle @ a29a7c4 assistant/child.rs (Copyright 2026 zickrian).
 // Windows: hidden child, kill-on-drop job, native/npm executable resolution; bounded JSON lines.
+use isle_core::i18n::{tr, trf};
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 use tokio::{
@@ -25,7 +26,7 @@ pub async fn line<R: AsyncBufRead + Unpin>(reader: &mut R) -> Result<Option<Stri
             .map_or(available.len(), |i| i + 1);
         anyhow::ensure!(
             bytes.len() + n <= MAX_LINE,
-            "Evento do assistente excede 1 MiB"
+            "{}", tr("assistant.event_too_long")
         );
         let ended = available[n - 1] == b'\n';
         bytes.extend_from_slice(&available[..n]);
@@ -38,7 +39,7 @@ pub async fn line<R: AsyncBufRead + Unpin>(reader: &mut R) -> Result<Option<Stri
         bytes.pop();
     }
     Ok(Some(
-        String::from_utf8(bytes).context("Evento do assistente não é UTF-8")?,
+        String::from_utf8(bytes).context(tr("assistant.not_utf8"))?,
     ))
 }
 pub fn npm_entry(name: &str) -> &'static str {
@@ -75,13 +76,13 @@ pub fn command(name: &str) -> Result<Command> {
                 .iter()
                 .map(|d| d.join(if cfg!(windows) { "node.exe" } else { "node" }))
                 .find(|p| p.is_file())
-                .context("Node.js não encontrado para o CLI npm")?;
+                .context(tr("assistant.no_node"))?;
             let mut cmd = Command::new(node);
             cmd.arg(entry);
             return Ok(cmd);
         }
     }
-    anyhow::bail!("{name} não encontrado. Instale o CLI e faça login pelo terminal.")
+    anyhow::bail!("{}", trf("assistant.cli_missing", &[("name", &name)]))
 }
 
 pub struct Child {
@@ -97,14 +98,14 @@ impl Child {
         cmd.kill_on_drop(true);
         #[cfg(windows)]
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-        let process = cmd.spawn().context("Não foi possível iniciar o CLI")?;
+        let process = cmd.spawn().context(tr("assistant.cli_start_failed"))?;
         #[cfg(windows)]
         unsafe {
             use windows::Win32::{Foundation::HANDLE, System::JobObjects::*};
             let job = CreateJobObjectW(None, None)?;
             let mut limits = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
             limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-            let handle = HANDLE(process.raw_handle().context("CLI sem handle")?);
+            let handle = HANDLE(process.raw_handle().context(tr("assistant.no_handle"))?);
             let attached = SetInformationJobObject(
                 job,
                 JobObjectExtendedLimitInformation,

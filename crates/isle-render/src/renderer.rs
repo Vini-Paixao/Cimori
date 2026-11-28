@@ -6,6 +6,7 @@ pub mod phase8_view;
 // tiny-skia controls and NotificationPanel using isle palette and Inter.
 // TrayListPanel/pinned icons adapted from Mac Island & Dock v3.1.1.
 
+use isle_core::i18n::{tr, trf};
 use crate::pages::{MediaKey, UiAction, agenda_grid, agenda_selected, compute_hitboxes};
 use crate::text::{Text, Weight};
 use isle_core::agenda::{civil_from_days, weekday};
@@ -160,14 +161,14 @@ pub fn resets_in(resets_at_ms: i64, now_ms: i64) -> String {
     }
     let left = resets_at_ms - now_ms;
     if left <= 0 {
-        return "renovando".into();
+        return tr("usage.renewing").into();
     }
     let minutes = (left + 59_999) / 60_000;
     let (d, h, m) = (minutes / 1440, minutes % 1440 / 60, minutes % 60);
     match (d, h) {
-        (0, 0) => format!("renova em {m}m"),
-        (0, _) => format!("renova em {h}h {m}m"),
-        _ => format!("renova em {d}d {h}h"),
+        (0, 0) => trf("usage.renews_m", &[("m", &m)]),
+        (0, _) => trf("usage.renews_hm", &[("h", &h), ("m", &m)]),
+        _ => trf("usage.renews_dh", &[("d", &d), ("h", &h)]),
     }
 }
 
@@ -451,7 +452,7 @@ impl PillRenderer {
                 self.draw_expanded(lx, y, lw, lh, canvas_w, *tab, state, cfg);
                 // Port of Island::DragOverAt's bubble (mac-island 3.1.1), over the open panel.
                 if state.drop_hint {
-                    let text = "Solte para pôr na prateleira";
+                    let text = tr("shelf.drop_here");
                     let tw = self.text.width(text, 12., Weight::Semibold) + 32.;
                     self.round(lx + (lw - tw) * 0.5, y + lh - 46., tw, 30., 15., accent());
                     self.centered_label(text, lx + lw * 0.5, y + lh - 38., 12., Weight::Semibold, white());
@@ -791,7 +792,7 @@ impl PillRenderer {
         let max = w - PAD * 2.0;
         // Who asks and with which tool may be cut; the command never is (see `command_fits`).
         let who = format!("{} · {}", card.agent, card.tool_name);
-        let more = (state.permission_waiting > 0).then(|| format!("+{} na fila", state.permission_waiting));
+        let more = (state.permission_waiting > 0).then(|| trf("permission.queued", &[("n", &state.permission_waiting)]));
         let more_w = more.as_ref().map_or(0.0, |m| self.text.width(m, SMALL, Weight::Regular) + 8.0);
         let who = self.text.ellipsize(&who, max - more_w, SMALL, Weight::Semibold);
         if let Some(m) = &more {
@@ -820,9 +821,9 @@ impl PillRenderer {
                 continue;
             };
             let (fill, label, ink) = match decision {
-                PermissionDecision::Allow => (accent(), "Permitir", ink()),
-                PermissionDecision::Always => (surface(), "Sempre", white()),
-                PermissionDecision::Deny => (surface(), "Negar", red()),
+                PermissionDecision::Allow => (accent(), tr("permission.allow"), ink()),
+                PermissionDecision::Always => (surface(), tr("permission.always"), white()),
+                PermissionDecision::Deny => (surface(), tr("permission.deny"), red()),
             };
             self.round(hb.x, hb.y, hb.w, hb.h, hb.h * 0.5, fill);
             let label_w = self.text.width(label, SMALL, Weight::Semibold);

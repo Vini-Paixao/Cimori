@@ -1,5 +1,6 @@
 use super::*;
 use isle_core::timers::{TimerMode, clock};
+use isle_core::i18n::{nth, tr, tr_or, trf, trn};
 use isle_core::weather::{Sky, degrees};
 impl PillRenderer {
     pub(super) fn media_view(
@@ -18,19 +19,15 @@ impl PillRenderer {
                 x,
                 y + CONTENT + 20.,
                 w,
-                "Nada tocando por enquanto.",
-                "Sua música aparece aqui quando começar.",
+                tr("media.empty_title"),
+                tr("media.empty_sub"),
                 Icon::Music,
             );
             return;
         };
         self.media_art(x + 24., y + CONTENT + 14., 100., s);
         self.label(
-            if m.playing {
-                "TOCANDO AGORA"
-            } else {
-                "EM PAUSA"
-            },
+            tr(if m.playing { "media.playing" } else { "media.paused" }),
             x + 146.,
             y + CONTENT + 19.,
             10.,
@@ -136,29 +133,6 @@ impl PillRenderer {
         h: f32,
         s: &IslandState,
     ) {
-        const MONTHS: [&str; 12] = [
-            "Janeiro",
-            "Fevereiro",
-            "Março",
-            "Abril",
-            "Maio",
-            "Junho",
-            "Julho",
-            "Agosto",
-            "Setembro",
-            "Outubro",
-            "Novembro",
-            "Dezembro",
-        ];
-        const DAYS: [&str; 7] = [
-            "Domingo",
-            "Segunda-feira",
-            "Terça-feira",
-            "Quarta-feira",
-            "Quinta-feira",
-            "Sexta-feira",
-            "Sábado",
-        ];
         let sel = agenda_selected(s);
         let g = agenda_grid(x, y, w, s);
         if s.ui.agenda_featured_day {
@@ -166,7 +140,7 @@ impl PillRenderer {
             let holiday = s.agenda.iter().find(|i| i.day == sel && i.holiday);
             let day_width = g.x0 - x - 32.;
             self.clipped_label(
-                DAYS[weekday(sel) as usize],
+                nth("date.weekdays", weekday(sel) as usize),
                 x + 24.,
                 y + CONTENT + 8.,
                 day_width,
@@ -183,7 +157,7 @@ impl PillRenderer {
                 white(),
             );
             self.clipped_label(
-                &format!("{} {sy}", MONTHS[sm as usize - 1]),
+                &format!("{} {sy}", nth("date.months", sm as usize - 1)),
                 x + 24.,
                 y + CONTENT + 108.,
                 day_width,
@@ -204,14 +178,14 @@ impl PillRenderer {
             }
         }
         self.label(
-            &format!("{} {}", MONTHS[g.month as usize - 1], g.year),
+            &format!("{} {}", nth("date.months", g.month as usize - 1), g.year),
             g.x0,
             y + CONTENT + 5.,
             13.,
             Weight::Medium,
             white(),
         );
-        for (i, d) in ["D", "S", "T", "Q", "Q", "S", "S"].iter().enumerate() {
+        for (i, d) in tr("date.weekdays_initial").split('|').enumerate() {
             self.centered_label(
                 d,
                 g.x0 + (i as f32 + 0.5) * g.cell_w,
@@ -273,13 +247,13 @@ impl PillRenderer {
         for (col, future) in [false, true].into_iter().enumerate() {
             let lx = x + 24. + col as f32 * (cw + 20.);
             self.label(
-                if future {
-                    "Próximos"
+                tr(if future {
+                    "agenda.upcoming"
                 } else if sel == s.today {
-                    "Hoje"
+                    "agenda.today"
                 } else {
-                    "Neste dia"
-                },
+                    "agenda.this_day"
+                }),
                 lx,
                 by + 13.,
                 11.,
@@ -294,7 +268,7 @@ impl PillRenderer {
                 .collect();
             if events.is_empty() {
                 self.clipped_label(
-                    "Nenhum compromisso",
+                    tr("agenda.nothing"),
                     lx,
                     by + 40.,
                     cw,
@@ -307,11 +281,11 @@ impl PillRenderer {
                 let ty = by + 39. + i as f32 * 24.;
                 let when = if future {
                     let (_, m, d) = civil_from_days(item.day);
-                    format!("{d:02}/{m:02}")
+                    trf("date.day_month", &[("d", &format!("{d:02}")), ("m", &format!("{m:02}"))])
                 } else if let Some(m) = item.minute {
                     format!("{:02}:{:02}", m / 60, m % 60)
                 } else {
-                    "Todo dia".into()
+                    tr("agenda.all_day").into()
                 };
                 self.label(&when, lx, ty + 1., 10., Weight::Regular, muted());
                 self.round(
@@ -349,8 +323,8 @@ impl PillRenderer {
                 x,
                 y + CONTENT + 30.,
                 w,
-                "O tempo por aqui",
-                s.weather_error.as_deref().unwrap_or("Buscando o clima…"),
+                tr("weather.empty_title"),
+                s.weather_error.as_deref().map_or(tr("weather.loading"), tr_or),
                 Icon::Sun,
             );
             return;
@@ -377,11 +351,7 @@ impl PillRenderer {
         );
         self.sky_icon(Sky::of(v.code, v.day), x + w - 64., b + 46., 61.);
         self.clipped_label(
-            &format!(
-                "{} · Sensação de {}",
-                Sky::of(v.code, v.day).name(),
-                degrees(v.feels_like, s.fahrenheit)
-            ),
+            &trf("weather.summary", &[("sky", &Sky::of(v.code, v.day).name()), ("feels", &degrees(v.feels_like, s.fahrenheit))]),
             left,
             b + 83.,
             inner - 100.,
@@ -397,24 +367,24 @@ impl PillRenderer {
             muted(),
         );
         let facts = [
-            ("Umidade", format!("{}%", v.humidity)),
+            (tr("weather.humidity"), format!("{}%", v.humidity)),
             (
-                "Vento",
+                tr("weather.wind"),
                 if s.fahrenheit {
                     format!("{:0.0} mph", v.wind / 1.609)
                 } else {
                     format!("{:0.0} km/h", v.wind)
                 },
             ),
-            ("Índice UV", v.uv.map_or("—".into(), |n| format!("{n:0.1}"))),
+            (tr("weather.uv"), v.uv.map_or("—".into(), |n| format!("{n:0.1}"))),
             (
-                "Chuva",
+                tr("weather.rain_chance"),
                 v.rain_chance.map_or("—".into(), |n| format!("{n}%")),
             ),
-            ("Pressão", format!("{:0.0} hPa", v.pressure)),
-            ("Nuvens", format!("{}%", v.clouds)),
-            ("Sensação", degrees(v.feels_like, s.fahrenheit)),
-            ("Céu", Sky::of(v.code, v.day).name().into()),
+            (tr("weather.pressure"), format!("{:0.0} hPa", v.pressure)),
+            (tr("weather.clouds"), format!("{}%", v.clouds)),
+            (tr("weather.feels"), degrees(v.feels_like, s.fahrenheit)),
+            (tr("weather.sky"), Sky::of(v.code, v.day).name().into()),
         ];
         self.subtle_line(left, b + 106., inner);
         for (i, (label, value)) in facts.iter().enumerate() {
@@ -438,10 +408,10 @@ impl PillRenderer {
             };
             let Some(d) = v.days.get(i) else { continue };
             let name = match i {
-                0 => "Hoje",
-                1 => "Amanhã",
+                0 => tr("weather.today"),
+                1 => tr("weather.tomorrow"),
                 _ => super::super::weather_view::day_number(&d.date).map_or("", |d| {
-                    ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"][weekday(d) as usize]
+                    nth("date.weekdays_forecast", weekday(d) as usize)
                 }),
             };
             self.draw_forecast_day(&hb, d, name, i == day, s);
@@ -484,7 +454,7 @@ impl PillRenderer {
                 };
                 self.centered_label(&wind, px, b + 322., 9., Weight::Regular, muted());
                 let time = if i == 0 && day == 0 {
-                    "Agora"
+                    tr("weather.now")
                 } else {
                     hour.time.get(11..16).unwrap_or("")
                 };
@@ -494,7 +464,7 @@ impl PillRenderer {
         self.clipped_label(
             s.weather_error
                 .as_deref()
-                .unwrap_or("Dados do clima: Open-Meteo"),
+                .map_or(tr("weather.attribution"), tr_or),
             left,
             y + h - 18.,
             inner,
@@ -529,21 +499,21 @@ impl PillRenderer {
             let (time, caption, frac) = match t.mode {
                 TimerMode::Pomodoro => (
                     clock(t.pomodoro_remaining_ms, true),
-                    if matches!(t.pomodoro_phase, Phase::ShortBreak | Phase::LongBreak) {
-                        "Pausa"
+                    tr(if matches!(t.pomodoro_phase, Phase::ShortBreak | Phase::LongBreak) {
+                        "focus.break"
                     } else {
-                        "Foco"
-                    },
+                        "focus.focus"
+                    }),
                     t.pomodoro_remaining_ms as f32 / t.pomodoro_duration_ms.max(1) as f32,
                 ),
                 TimerMode::Countdown => (
                     clock(t.countdown_remaining_ms, true),
-                    "Timer",
+                    tr("focus.timer"),
                     t.countdown_remaining_ms as f32 / t.countdown_duration_ms.max(1) as f32,
                 ),
                 _ => (
                     clock(t.stopwatch_ms, false),
-                    "Cronômetro",
+                    tr("focus.stopwatch"),
                     (t.stopwatch_ms % 60000) as f32 / 60000.,
                 ),
             };
@@ -567,11 +537,11 @@ impl PillRenderer {
                         9.,
                         if on { surface() } else { Color::TRANSPARENT },
                     );
-                    let text = crate::pages::TIMER_MODES
+                    let text = tr(crate::pages::TIMER_MODES
                         .iter()
                         .find(|v| v.0 == m)
                         .unwrap()
-                        .1;
+                        .1);
                     self.centered_label(
                         text,
                         hb.x + hb.w / 2.,
@@ -598,7 +568,7 @@ impl PillRenderer {
                         if running { white() } else { ink() },
                     );
                     self.centered_label(
-                        if running { "Pausar" } else { "Iniciar" },
+                        tr(if running { "focus.pause" } else { "focus.start" }),
                         hb.x + hb.w / 2. + 10.,
                         centered_top(hb.y, hb.h, 13.),
                         13.,
@@ -632,7 +602,7 @@ impl PillRenderer {
                 crate::pages::TimerAction::Field => {
                     self.round(hb.x, hb.y, hb.w, hb.h, 11., surface());
                     let shown = if t.reminder_text.is_empty() {
-                        "Do que você quer lembrar?".to_owned()
+                        tr("focus.reminder_placeholder").to_owned()
                     } else {
                         format!(
                             "{}{}",
@@ -685,7 +655,7 @@ impl PillRenderer {
         }
         match t.mode {
             TimerMode::Pomodoro if t.pomodoro_phase == Phase::Idle => {
-                for (i, (name, n)) in [("Foco", t.focus_minutes), ("Pausa", t.break_minutes)]
+                for (i, (name, n)) in [(tr("focus.focus"), t.focus_minutes), (tr("focus.break"), t.break_minutes)]
                     .into_iter()
                     .enumerate()
                 {
@@ -702,7 +672,7 @@ impl PillRenderer {
                 }
             }
             TimerMode::Countdown if !t.countdown_started => self.centered_label(
-                &format!("{} minutos", t.countdown_duration_ms / 60000),
+                &trn("focus.minutes", t.countdown_duration_ms / 60000, &[]),
                 x + w / 2.,
                 b + 231.,
                 12.,
@@ -711,7 +681,7 @@ impl PillRenderer {
             ),
             TimerMode::Reminders => {
                 self.label(
-                    &format!("Daqui a {} min", t.reminder_minutes),
+                    &trf("focus.reminder_in", &[("m", &t.reminder_minutes)]),
                     x + 20.,
                     b + 103.,
                     12.,
@@ -720,7 +690,7 @@ impl PillRenderer {
                 );
                 if t.reminders.is_empty() {
                     self.label(
-                        "Nenhum lembrete pendente",
+                        tr("focus.no_reminders"),
                         x + 24.,
                         b + 161.,
                         13.,
@@ -729,7 +699,7 @@ impl PillRenderer {
                     );
                 } else if t.reminders.len() > crate::pages::REMINDER_ROWS {
                     self.label(
-                        &format!("e mais {}", t.reminders.len() - crate::pages::REMINDER_ROWS),
+                        &trf("focus.more", &[("n", &(t.reminders.len() - crate::pages::REMINDER_ROWS))]),
                         x + 24.,
                         y + h - 27.,
                         10.,
